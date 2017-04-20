@@ -39,6 +39,8 @@ class ControlChart(object):
         self.dates = np.append(self.dates, dates)
         self.datemin = np.min(self.dates)
         self.datemax = np.max(self.dates)
+        if dbhandle is not None:
+            dbhandle.add_measurements(self.ID, dates, points)
 
     def delete_points(self, dates, dbhandle=None):
         self.points = self.points[self.dates != dates]

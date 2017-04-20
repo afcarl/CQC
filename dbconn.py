@@ -71,10 +71,14 @@ class DBConnection(object):
             self.x(update, params)
 
     def add_measurements(self, cc_ID, dates, points):
-        pass
+        insert = "INSERT INTO Referencia_meres VALUES (?,?,?)"
+        with self.conn:
+            self.conn.executemany(insert, ((cc_ID, d, p) for d, p in zip(dates, points)))
 
     def delete_measurements(self, cc_ID, dates):
-        pass
+        delete = "DELETE * FROM Referencia_meres WHERE cc_ID = ? AND date = ?"
+        with self.conn:
+            self.conn.executemany(delete, ((cc_ID, d) for d in dates))
 
     def modify_measurements(self, cc_ID, dates, points):
-        pass
+        update = "UPDATE Referencia_meres SET"
