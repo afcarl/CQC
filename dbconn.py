@@ -30,10 +30,10 @@ class DBConnection(object):
             "paramname TEXT NOT NULL",
             "dimension TEXT",
             "refmean REAL NOT NULL",
-            "refstd REAL NOT NULL"
+            "refstd REAL NOT NULL",
+            "uncertainty REAL NOT NULL"
         ]
         datatable_fields = [
-            "msr_id TEXT PRIMARY KEY NOT NULL",
             "cc_id TEXT NOT NULL",
             "date INT NOT NULL",
             "value REAL NOT NULL"
@@ -42,14 +42,12 @@ class DBConnection(object):
                           .format(", ".join(cctable_fields)))
         create_datatable = ("CREATE TABLE Referencia_meres ({});"
                             .format(", ".join(datatable_fields)))
-
-        # CTXMGR autocommits / rolls back in case of success / error
         with self.conn:
             self.x(create_cctable)
             self.x(create_datatable)
 
     def new_cc(self, cc_object):
-        insert = "INSERT INTO Kontroll_diagram VALUES (?,?,?,?)"
+        insert = "INSERT INTO Kontroll_diagram VALUES (?,?,?,?,?)"
         params = cc_object.tabledata()
         with self.conn:
             self.x(insert, params)
@@ -63,10 +61,10 @@ class DBConnection(object):
 
     def update_cc(self, cc_object):
         update = "UPDATE Kontrol_diagram SET "
-        update += "paramname = ?, dimension = ?, refmean = ?, refstd = ? "
+        update += "paramname = ?, dimension = ?, refmean = ?, refstd = ?, uncertainty = ? "
         update += "WHERE cc_id = ?;"
         params = cc_object.tabledata()
-        params.append(params.pop(0))
+        params.append(params.pop(0))  # rotate list, so cc_id is the last element
         with self.conn:
             self.x(update, params)
 
@@ -75,10 +73,11 @@ class DBConnection(object):
         with self.conn:
             self.conn.executemany(insert, ((cc_ID, d, p) for d, p in zip(dates, points)))
 
-    def delete_measurements(self, cc_ID, dates):
-        delete = "DELETE * FROM Referencia_meres WHERE cc_ID = ? AND date = ?"
+    def truncate_measurements(self, cc_ID):
+        delete = "DELETE * FROM Referencia_meres WHERE cc_id == ?;"
         with self.conn:
-            self.conn.executemany(delete, ((cc_ID, d) for d in dates))
+            self.x(delete, cc_ID)
 
     def modify_measurements(self, cc_ID, dates, points):
-        update = "UPDATE Referencia_meres SET"
+        self.truncate_measurements(cc_ID)
+        self.add_measurements(cc_ID, dates, points)

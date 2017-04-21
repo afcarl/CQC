@@ -17,6 +17,7 @@ class ControlChart(object):
 
         self.refmean = None
         self.refstd = None
+        self.uncertainty = None
         self.dates = np.array([])
         self.points = np.array([])
 
@@ -24,13 +25,21 @@ class ControlChart(object):
         self.refmean = refpoints.mean()
         self.refstd = refpoints.std()
 
-    def reference_from_stats(self, refmean, refstd):
+    def reference_from_stats(self, refmean, refstd, uncertainty=None):
         self.refmean = refmean
         self.refstd = refstd
+        self.uncertainty = uncertainty
+
+    def calculate_uncertainty(self, points):
+        std = np.std(points)
+        self.uncertainty = std / len(points)
 
     def add_points(self, dates,  points, dbhandle=None):
-        if self.refmean is None or self.refstd is None:
-            raise RuntimeError("Unitialized control chart!")
+        err = " ".join(("Unitialized control chart!",
+                        "Please supply a reference mean,",
+                        "standard deviation and measurement uncertainty!"))
+        if any(map(lambda x: x is None, (self.refmean, self.refstd, self.uncertainty))):
+            raise RuntimeError(err)
         if isinstance(points, np.ndarray):
             points = points.tolist()
         if isinstance(dates, np.ndarray):
@@ -45,9 +54,12 @@ class ControlChart(object):
     def delete_points(self, dates, dbhandle=None):
         self.points = self.points[self.dates != dates]
         self.dates = self.dates[self.dates != dates]
+        dbhandle.modify_measurements(self.ID, self.dates, self.points)
 
     def modify_points(self, dates, points, dbhandle=None):
         self.points[self.dates == dates] = points
+        if dbhandle is not None:
+            dbhandle.modify_measurements(self.ID, self.dates, self.points)
 
     def report(self):
         chain = "Kontroll diagram {}\n".format(self.ID)
@@ -55,24 +67,26 @@ class ControlChart(object):
         chain += "Paraméter: {}\n".format(self.paramname)
         chain += "Etalon: {}\n".format(self.etalon_ID)
         chain += "{}. revízió\n".format(self.revision)
-        chain += "{}-{}\n".format(self.datemin, self.datemax)
+        chain += "{} -- {}\n".format(self.datemin, self.datemax)
         print(chain)
         return chain
 
     def tabledata(self):
-        return [self.ID, self.paramname, self.dimension, self.refmean, self.refstd]
+        out = [self.ID, self.paramname, self.dimension,
+               self.refmean, self.refstd, self.uncertainty]
+        return out
 
 
 def main():
     from plot_cc import CCPlotter
 
-    N = 50
+    N = 100
     dates = np.linspace(0, 100, N)
-    mn, st = 10., 3.
+    mn, st, unc = 10., 3., 10.
     points = (np.random.randn(N) * st) + mn
     cc = ControlChart(method_ID="NAVSZI_123", etalon_ID="BFG 9000",
                       paramname="TesztParaméter", dimension="m/s**2")
-    cc.reference_from_stats(mn, st)
+    cc.reference_from_stats(mn, st, unc)
     cc.add_points(dates, points)
     cc.report()
 
