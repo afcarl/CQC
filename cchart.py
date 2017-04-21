@@ -1,17 +1,20 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
+from datetime import datetime
 import numpy as np
 
 
 class ControlChart(object):
 
-    def __init__(self, method_ID, etalon_ID, paramname, dimension, revision=1):
+    def __init__(self, method_ID, etalon_ID, paramname, dimension, revision=1,
+                 startdate=None):
         self.method_ID = method_ID
         self.etalon_ID = etalon_ID
         self.revision = revision
         self.ID = "KD-{}-{}-{}".format(method_ID, etalon_ID, revision)
         self.paramname = paramname
         self.dimension = dimension
+        self.startdate = datetime.today() if startdate is None else startdate
         self.datemin = 0
         self.datemax = 0
 
@@ -20,6 +23,21 @@ class ControlChart(object):
         self.uncertainty = None
         self.dates = np.array([])
         self.points = np.array([])
+
+    @classmethod
+    def from_database(cls, ID, dbhandle):
+        select_cc = "SELECT * FROM Kontroll_diagram WHERE cc_ID == ?;"
+        select_data = "SELECT date, value FROM Referencia_meres WHERE cc_ID == ?;"
+        c = dbhandle.conn.cursor()
+        c.execute(select_cc, [ID])
+        args = c.fetchone()
+        c.execute(select_data, [ID])
+        dates, points = list(*zip([d for d in c]))
+
+        cc = ControlChart(*args[1:])
+        cc.add_points(dates, points)
+
+        return cc
 
     def reference_from_points(self, refpoints):
         self.refmean = refpoints.mean()
