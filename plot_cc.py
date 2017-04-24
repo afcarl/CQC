@@ -44,7 +44,9 @@ class CCPlotter(object):
         def annotate(arg):
             date, point = arg
             z = (point - self.cc.refmean) / self.cc.refstd
-            z = abs(round(z, 2))
+            z = round(z, 2)
+            va = "top" if z < 0 else "bottom"
+            z = abs(z)
             tx = "{} {}\nZ° = {}".format(round(point, 4), self.cc.dimension, z)
             # offsx = 10. if point > self.cc.refmean else -10.
             # offsy = 20. if date > np.mean(self.cc.dates) else -10.
@@ -53,7 +55,7 @@ class CCPlotter(object):
             self.ax.annotate(tx, xy=(date, point), xycoords="data",
                              xytext=(offsx, offsy), textcoords="offset points",
                              # xytext=(0.8, 0.95), textcoords="axes fraction",
-                             horizontalalignment="right", verticalalignment="top")
+                             horizontalalignment="right", verticalalignment=va)
 
         Xs, Ys = np.array(self.cc.dates), np.array(self.cc.points)
         ywlim = self.cc.refmean - 1.9 * self.cc.refstd, self.cc.refmean + 1.9 * self.cc.refstd
@@ -64,6 +66,7 @@ class CCPlotter(object):
         bargs = np.argwhere((ywlim[0] < Ys) & (Ys < ywlim[1])).ravel()
 
         plt.scatter(Xs[bargs], Ys[bargs], c="black", marker=".")
+        plt.plot(Xs, Ys, "b-", linewidth=1)
         if len(yargs):
             plt.scatter(Xs[yargs], Ys[yargs], c="orange", marker=".")
             if annot:
