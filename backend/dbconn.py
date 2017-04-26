@@ -2,7 +2,7 @@ from __future__ import print_function, absolute_import, unicode_literals
 
 import sqlite3 as sql
 
-testroot = "/home/csa/SciProjects/Project_CQC/"
+from .cchart import ControlChart
 
 
 class MetaHandler(object):
@@ -95,8 +95,6 @@ class DBConnection(object):
 
 def main():
     import numpy as np
-
-    from CQC.cchart import ControlChart
 
     dbc = DBConnection(testroot + "TestDb.db", testroot + "meta.dat")
     # dbc.create_db()

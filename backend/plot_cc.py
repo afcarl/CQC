@@ -1,9 +1,12 @@
 import numpy as np
 from scipy import stats
+
 from matplotlib import pyplot as plt
 
+cacheroot = "/home/csa/SciProjects/Project_CQC/"
 
-class CCPlotter(object):
+
+class PlotBuilder(object):
 
     def __init__(self, cc):
         self.cc = cc
@@ -86,10 +89,12 @@ class CCPlotter(object):
     def _set_titles(self):
         pst = "Kontroll diagram {} paraméterhez".format(self.cc.paramname)
         pt = "Anyagminta: {}\n{}. revízió".format(self.cc.etalon_ID, self.cc.revision)
-        plt.suptitle(pst, fontsize=14)
-        plt.title(pt, fontsize=12)
+        plt.title("\n".join((pst, pt)), fontsize=12)
 
-    def plot(self, trend=False, annot=True):
+    def _create_plot(self, trend=False, annot=True):
+        gcf = plt.gcf()
+        gcf.clear()
+        gcf.set_size_inches(10, 6, forward=True)
         self._plot_hlines()
         ax = self._setup_axes()
         self._scatter_points(annot=annot)
@@ -97,12 +102,13 @@ class CCPlotter(object):
             self._add_linear_trendline()
         self._add_zscore_axis(ax)
         self._set_titles()
-
-        fm = plt.get_current_fig_manager()
-        fm.window.showMaximized()
         plt.tight_layout()
         plt.subplots_adjust(left=0.07, right=0.95)
+
+    def plot(self):
+        self._create_plot()
         plt.show()
 
-    def __call__(self):
-        self.plot()
+    def dump(self, path=None):
+        self._create_plot()
+        plt.savefig(path if path is not None else cacheroot + "cc_pic.png")

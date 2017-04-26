@@ -1,13 +1,14 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
 from datetime import datetime
+
 import numpy as np
 
 
 class ControlChart(object):
 
-    def __init__(self, method_ID, etalon_ID, paramname, dimension, revision=1,
-                 startdate=None):
+    def __init__(self, method_ID, etalon_ID, paramname, dimension,
+                 revision=1, startdate=None):
         self.method_ID = method_ID
         self.etalon_ID = etalon_ID
         self.revision = revision
@@ -52,7 +53,7 @@ class ControlChart(object):
         std = np.std(points)
         self.uncertainty = std / len(points)
 
-    def add_points(self, dates,  points, dbhandle=None):
+    def add_points(self, dates,  points):
         err = " ".join(("Unitialized control chart!",
                         "Please supply a reference mean,",
                         "standard deviation and measurement uncertainty!"))
@@ -66,18 +67,13 @@ class ControlChart(object):
         self.dates = np.append(self.dates, dates)
         self.datemin = np.min(self.dates)
         self.datemax = np.max(self.dates)
-        if dbhandle is not None:
-            dbhandle.add_measurements(self.ID, dates, points)
 
-    def delete_points(self, dates, dbhandle=None):
+    def delete_points(self, dates):
         self.points = self.points[self.dates != dates]
         self.dates = self.dates[self.dates != dates]
-        dbhandle.modify_measurements(self.ID, self.dates, self.points)
 
-    def modify_points(self, dates, points, dbhandle=None):
+    def modify_points(self, dates, points):
         self.points[self.dates == dates] = points
-        if dbhandle is not None:
-            dbhandle.modify_measurements(self.ID, self.dates, self.points)
 
     def report(self):
         chain = "Kontroll diagram {}\n".format(self.ID)
@@ -93,24 +89,3 @@ class ControlChart(object):
         out = [self.ID, self.paramname, self.dimension,
                self.refmean, self.refstd, self.uncertainty]
         return out
-
-
-def main():
-    from plot_cc import CCPlotter
-
-    N = 100
-    dates = np.linspace(0, 100, N)
-    mn, st, unc = 10., 3., 10.
-    points = (np.random.randn(N) * st) + mn
-    cc = ControlChart(method_ID="NAVSZI_123", etalon_ID="BFG 9000",
-                      paramname="TesztParaméter", dimension="m/s**2")
-    cc.reference_from_stats(mn, st, unc)
-    cc.add_points(dates, points)
-    cc.report()
-
-    plotter = CCPlotter(cc)
-    plotter.plot()
-
-
-if __name__ == '__main__':
-    main()
