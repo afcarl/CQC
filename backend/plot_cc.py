@@ -14,18 +14,15 @@ class PlotBuilder(object):
 
     def _plot_hlines(self):
 
-        def draw_stdline(parm):
-            coef, col = parm
-            plt.axhline(y=self.cc.refmean + coef * self.cc.refstd, xmin=datemin, xmax=datemax, color=col)
+        def draw_dual(coef, col):
+            plt.axhline(y=self.cc.refmean + coef * self.cc.refstd, color=col)
+            plt.axhline(y=self.cc.refmean - coef * self.cc.refstd, color=col)
+            pass
 
-        datemin = np.min(self.cc.dates)
-        datemax = np.max(self.cc.dates)
-        plt.axhline(y=self.cc.refmean, xmin=datemin, xmax=datemax, color="purple", linestyle="--")
-
-        list(map(draw_stdline, ((2, "blue"), (-2, "blue"),
-                                (3, "red"), (-3, "red"))))
-        plt.axhline(y=self.cc.refmean+self.cc.uncertainty, xmin=datemin, xmax=datemax, color="green")
-        plt.axhline(y=self.cc.refmean-self.cc.uncertainty, xmin=datemin, xmax=datemax, color="green")
+        m, s, u = self.cc.refmean, self.cc.refstd, self.cc.uncertainty
+        plt.axhline(y=m, color="purple", linestyle="--")
+        for num, color in zip((2*s, 3*s, u), ("blue", "red", "green")):
+            draw_dual(num, color)
 
     def _setup_axes(self):
         ax = plt.gca()
@@ -53,11 +50,7 @@ class PlotBuilder(object):
             tx = "{} {}\nZ° = {}".format(round(point, 4), self.cc.dimension, z)
             # offsx = 10. if point > self.cc.refmean else -10.
             # offsy = 20. if date > np.mean(self.cc.dates) else -10.
-            offsx = 0
-            offsy = 0
             self.ax.annotate(tx, xy=(date, point), xycoords="data",
-                             xytext=(offsx, offsy), textcoords="offset points",
-                             # xytext=(0.8, 0.95), textcoords="axes fraction",
                              horizontalalignment="right", verticalalignment=va)
 
         Xs, Ys = np.array(self.cc.dates), np.array(self.cc.points)

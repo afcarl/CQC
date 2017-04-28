@@ -23,9 +23,9 @@ def show_mpl_plot():
     cc.report()
 
     plotter = PlotBuilder(cc)
-    plotter.dump()
+    # plotter.dump()
     plotter.plot()
 
 
 if __name__ == '__main__':
-    show_mpl_plot()
+    gui_main()
