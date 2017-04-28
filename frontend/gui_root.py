@@ -29,6 +29,7 @@ class Rootwin(Tk):
         except AttributeError or TclError:
             pass
         self.active_tl = {"CreateCC": CreateCC}[what](self)
+        self.active_tl.replace()
 
     def _build_ccmenu(self):
         fm = Menu(self.menubar)
