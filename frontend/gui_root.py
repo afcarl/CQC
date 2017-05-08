@@ -11,6 +11,8 @@ class Rootwin(Tk):
         self.title("CQC - Vámlaboratóriumi minőségirányítás - Kontroll diagram modul")
         # self.geometry("1000x600")
 
+        self.ccobject = None
+        self.saved = True
         self.active_tl = None
 
         self.menubar = Menu(self)
@@ -29,7 +31,7 @@ class Rootwin(Tk):
         except AttributeError or TclError:
             pass
         self.active_tl = {"CreateCC": CreateCC}[what](self)
-        self.active_tl.replace()
+        self.active_tl.reposition()
 
     def _build_ccmenu(self):
         fm = Menu(self.menubar)

@@ -11,9 +11,10 @@ class CreateCC(Toplevel):
         self.efr = Frame(self)  # entry frame
         self.efr.pack()
         self._add_entries_and_labels()
+        self.readybutton = None
         self._add_buttons()
 
-    def replace(self):
+    def reposition(self):
         x, y = self.master.winfo_x(), self.master.winfo_y()
         self.update()
         w, h = self.winfo_width(), self.winfo_height()
@@ -31,10 +32,18 @@ class CreateCC(Toplevel):
             self.entries[field] = e
 
     def _add_buttons(self):
-        bw = 7
-        Button(self, text="Kész", width=bw, command=self.setvars
-               ).pack(fill="both")
-        Button(self, text="Mégsem", width=bw, command=self.closeme
+        tf = Frame(self, bd=3, relief="raised")
+        Label(tf, text="Referencia statisztikák megadása (átlag, szórás, stb.)"
+              ).pack()
+        Button(tf, text="Statisztikák számítása"
+               ).pack(side="left", fill="both", expand=True)
+        Button(tf, text="Statisztikák megadása"
+               ).pack(side="left", fill="both", expand=True)
+        tf.pack(fill="both", expand=True)
+
+        self.readybutton = Button(self, text="Kész", command=self.setvars)
+        self.readybutton.pack(fill="both")
+        Button(self, text="Mégsem", command=self.closeme
                ).pack(fill="both")
 
     def get_params(self):
@@ -46,6 +55,7 @@ class CreateCC(Toplevel):
     def setvars(self):
         # TODO: set CC vars and exit
         self.destroy()
+
 
 if __name__ == '__main__':
     root = CreateCC(None)
