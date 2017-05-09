@@ -1,5 +1,5 @@
 from CQC.backend.cchart import ControlChart
-from CQC.backend.plot_cc import PlotBuilder
+from CQC.backend.plot_cc import LeveyJenningsChart
 
 
 def create_empty_cchart(dumppath):
@@ -10,8 +10,12 @@ def create_empty_cchart(dumppath):
     cc = ControlChart("?", "?", "?", "?", 1)
     cc.reference_from_stats(0, 1, 2)
     cc.add_points(dates, points)
-    pb = PlotBuilder(cc)
+    pb = LeveyJenningsChart(cc)
     pb.dump(dumppath)
+
+
+def floatify(string):
+    return float(string.replace(",", "."))
 
 
 if __name__ == '__main__':

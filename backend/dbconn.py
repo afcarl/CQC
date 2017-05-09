@@ -2,8 +2,6 @@ from __future__ import print_function, absolute_import, unicode_literals
 
 import sqlite3 as sql
 
-from .cchart import ControlChart
-
 
 class MetaHandler(object):
 
@@ -93,24 +91,6 @@ class DBConnection(object):
         self.add_measurements(cc_ID, dates, points)
 
 
-def main():
-    import numpy as np
-
-    dbc = DBConnection(testroot + "TestDb.db", testroot + "meta.dat")
-    # dbc.create_db()
-
-    N = 100
-    dates = np.linspace(0, 100, N)
-    mn, st, unc = 10., 3., 10.
-    points = (np.random.randn(N) * st) + mn
-    cc = ControlChart(method_ID="NAVSZI_123", etalon_ID="BFG 9000",
-                      paramname="TesztParaméter", dimension="m/s**2")
-    cc.reference_from_stats(mn, st, unc)
-    dbc.new_cc(cc)
-    cc.add_points(dates, points, dbhandle=dbc)
-    cc.report()
-
-
 def printout_db():
 
     def stringify_table(tablename):
@@ -126,6 +106,7 @@ def printout_db():
     rm = "Referencia_meres"
     outchain = "\n\n".join((stringify_table(kd), stringify_table(rm)))
     print(outchain)
+
 
 if __name__ == '__main__':
     printout_db()

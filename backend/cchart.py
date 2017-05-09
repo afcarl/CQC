@@ -4,6 +4,8 @@ from datetime import datetime
 
 import numpy as np
 
+from .plot_cc import LeveyJenningsChart
+
 
 class ControlChart(object):
 
@@ -18,6 +20,7 @@ class ControlChart(object):
         self.startdate = datetime.today() if startdate is None else startdate
         self.datemin = 0
         self.datemax = 0
+        self.imgpath = None
 
         self.refmean = None
         self.refstd = None
@@ -89,3 +92,9 @@ class ControlChart(object):
         out = [self.ID, self.paramname, self.dimension,
                self.refmean, self.refstd, self.uncertainty]
         return out
+
+    def plot(self, show=False):
+        plotter = LeveyJenningsChart(self)
+        plotter.dump()
+        if show:
+            plotter.plot()

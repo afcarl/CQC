@@ -6,11 +6,12 @@ from matplotlib import pyplot as plt
 cacheroot = "/home/csa/SciProjects/Project_CQC/"
 
 
-class PlotBuilder(object):
+class LeveyJenningsChart(object):
 
     def __init__(self, cc):
         self.cc = cc
         self.ax = plt.gca()
+        self.Xs = None
 
     def _plot_hlines(self):
 
@@ -53,7 +54,8 @@ class PlotBuilder(object):
             self.ax.annotate(tx, xy=(date, point), xycoords="data",
                              horizontalalignment="right", verticalalignment=va)
 
-        Xs, Ys = np.array(self.cc.dates), np.array(self.cc.points)
+        Ys = np.array(self.cc.points)
+        Xs = np.linspace(1., len(Ys), len(Ys))
         ywlim = self.cc.refmean - 1.9 * self.cc.refstd, self.cc.refmean + 1.9 * self.cc.refstd
         rdlim = self.cc.refmean - 2.9 * self.cc.refstd, self.cc.refmean + 2.9 * self.cc.refstd
         yargs = np.concatenate((np.argwhere((rdlim[0] < Ys) & (Ys < ywlim[0])),
@@ -71,13 +73,14 @@ class PlotBuilder(object):
             plt.scatter(Xs[rargs], Ys[rargs], c="red", marker=".")
             if annot:
                 list(map(annotate, zip(Xs[rargs], Ys[rargs])))
+        self.Xs = Xs
 
     def _add_linear_trendline(self):
-        z = np.polyfit(self.cc.dates.astype(int), self.cc.points, 1)
-        p = np.poly1d(z)
-        r = stats.pearsonr(self.cc.points, p(self.cc.dates.astype(int)))[0] ** 2
+        line = np.poly1d(np.polyfit(self.Xs, self.cc.points, 1))
+        pred = line(self.Xs)
+        r = stats.pearsonr(self.cc.points, pred)[0] ** 2
         print("r^2 =", r)
-        plt.plot(self.cc.dates, p(self.cc.dates.astype(int)), "r--", linewidth=3)
+        plt.plot(self.Xs, pred, "r--", linewidth=2)
 
     def _set_titles(self):
         pst = "Kontroll diagram {} paraméterhez".format(self.cc.paramname)
@@ -87,7 +90,7 @@ class PlotBuilder(object):
     def _create_plot(self, trend=False, annot=True):
         gcf = plt.gcf()
         gcf.clear()
-        gcf.set_size_inches(10, 6, forward=True)
+        gcf.set_size_inches(9, 5, forward=True)
         self._plot_hlines()
         ax = self._setup_axes()
         self._scatter_points(annot=annot)
@@ -104,4 +107,8 @@ class PlotBuilder(object):
 
     def dump(self, path=None):
         self._create_plot()
+        if path is None:
+            path = cacheroot + "cc_pic.png"
         plt.savefig(path if path is not None else cacheroot + "cc_pic.png")
+        self.cc.imgpath = path
+        return path

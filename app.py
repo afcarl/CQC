@@ -10,7 +10,7 @@ def gui_main():
 
 def show_mpl_plot():
     from CQC.backend.cchart import ControlChart
-    from CQC.backend.plot_cc import PlotBuilder
+    from CQC.backend.plot_cc import LeveyJenningsChart
 
     N = 100
     dates = np.linspace(0, 100, N)
@@ -22,7 +22,7 @@ def show_mpl_plot():
     cc.add_points(dates, points)
     cc.report()
 
-    plotter = PlotBuilder(cc)
+    plotter = LeveyJenningsChart(cc)
     # plotter.dump()
     plotter.plot()
 
