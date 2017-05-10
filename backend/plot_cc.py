@@ -3,7 +3,7 @@ from scipy import stats
 
 from matplotlib import pyplot as plt
 
-cacheroot = "/home/csa/SciProjects/Project_CQC/"
+from .util import cacheroot
 
 
 class LeveyJenningsChart(object):
@@ -97,7 +97,8 @@ class LeveyJenningsChart(object):
         if trend:
             self._add_linear_trendline()
         self._add_zscore_axis(ax)
-        self._set_titles()
+        self.ax.set_xlim([1, 30])
+        self.ax.xaxis.set_ticks(np.arange(0, 30, 2))
         plt.tight_layout()
         plt.subplots_adjust(left=0.07, right=0.95)
 

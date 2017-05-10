@@ -1,55 +1,67 @@
-from tkinter import Tk, Menu, Label, PhotoImage, TclError, Frame
+from tkinter import Tk, Menu, Frame
 
-from .abstractions import CCHandlerMixin
-from .gui_cchart_builder import PropertiesCC
+from .gui_widgets import ChartHolder
+from .gui_propspanel import PropertiesPanel
 
-from ..backend.routines import instantiate_cc
 from ..backend.plot_cc import cacheroot
 from ..backend.dbconn import DBConnection
 
 
-class Rootwin(Tk, CCHandlerMixin):
+class Rootwin(Tk):
 
     def __init__(self):
         super().__init__()
-        self.title("CQC - Vámlaboratóriumi minőségirányítás - Kontroll diagram modul")
-        # self.geometry("1000x600")
-        self.ccimg = PhotoImage(file=cacheroot+"emptycc.png")
+        self.title("CQC - Minőségirányítás - Kontroll diagram modul")
         self.dbifc = DBConnection(cacheroot+"TestDb.db", cacheroot+"meta.dat")
 
         self.saved = True
-        self.active_tl = None
+        self.active_panel = None
+        self.active_toplevel = None
 
         self.menubar = Menu(self)
         self._build_ccmenu()
+        self._build_viewmenu()
         self._build_pointsmenu()
         self.config(menu=self.menubar)
 
-        self.dataframe = Frame(self)
-        self.dataframe.pack(side="right", fill="both")
-        self.canvas = Label(self)
-        self.canvas.pack(side="right", fill="both", expand=1)
+        self.mainframe = Frame(self)
+        self.mainframe.pack(fill="both", expand=1)
 
-        self._update_plot()
+        self.canvas = ChartHolder(self.mainframe)
+        self.canvas.update_image()
 
-    def activate_toplevel(self, what):
-        try:
-            self.active_tl.destroy()
-        except AttributeError or TclError:
+        self.propspanel = PropertiesPanel(self.mainframe)
+        self.activate_panel("properties")
+
+        # self.resizable(False, False)
+
+    def _select_component(self, cname):
+        components = {
+            "control chart": self.canvas,
+            "properties": self.propspanel,
+        }
+        return components[cname]
+
+    def activate_panel(self, what):
+        if self.active_panel is not None:
+            self.active_panel.pack_forget()
+        self.active_panel = self._select_component(what)
+        self.active_panel.pack(fill="both", expand=1)
+
+    def display(self, ccobj):
+        self.canvas = ChartHolder(self.mainframe)
+        self.canvas.set_ccobject(ccobj)
+
+    def _savecc_cmd(self):
+        pass
+
+    def _newcc_cmd(self):
+        if not self.saved:
             pass
-        self.active_tl = {"CreateCC": PropertiesCC}[what](self)
-        self.active_tl.reposition()
-        self.active_tl.grab_set()
-
-    def set_cc(self, name, data):
-        cc = instantiate_cc(data)
-        self.ccobjects[cc.ID] = cc
-        self.ccimg = PhotoImage(file=self.ccobject.imgpath)
-        self._update_plot()
 
     def _build_ccmenu(self):
         fm = Menu(self.menubar, tearoff=0)
-        fm.add_command(label="Új...", command=lambda: self.activate_toplevel("CreateCC"))
+        fm.add_command(label="Új...", command=lambda: self.newcc_cmd("CreateCC"))
         fm.add_command(label="Megnyitás...")
         fm.add_command(label="Mentés")
         fm.add_command(label="Mentés másként...")
@@ -58,6 +70,14 @@ class Rootwin(Tk, CCHandlerMixin):
         fm.add_separator()
         fm.add_command(label="Kilépés")
         self.menubar.add_cascade(label="Kontroll diagram", menu=fm)
+
+    def _build_viewmenu(self):
+        fm = Menu(self.menubar, tearoff=0)
+        fm.add_command(label="Diagram",
+                       command=lambda: self.activate_panel("control chart"))
+        fm.add_command(label="Tulajdonságok",
+                       command=lambda: self.activate_panel("properties"))
+        self.menubar.add_cascade(label="Nézet", menu=fm)
 
     def _build_pointsmenu(self):
         pm = Menu(self.menubar, tearoff=0)
@@ -70,8 +90,3 @@ class Rootwin(Tk, CCHandlerMixin):
     def _update_plot(self):
         self.canvas.config(image=self.ccimg)
         self.saved = False
-
-    def _save_state(self):
-        if self.saved:
-            return
-        self.ccobject

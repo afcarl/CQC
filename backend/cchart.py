@@ -5,26 +5,29 @@ from datetime import datetime
 import numpy as np
 
 from .plot_cc import LeveyJenningsChart
+from .util import CCParams, cacheroot
 
 
 class ControlChart(object):
 
-    def __init__(self, method_ID, etalon_ID, paramname, dimension,
-                 revision=1, startdate=None):
+    def __init__(self, method_ID, etalon_ID, revision, paramname, dimension,
+                 startdate=None, comment=None):
         self.method_ID = method_ID
         self.etalon_ID = etalon_ID
         self.revision = revision
         self.ID = "KD-{}-{}-{}".format(method_ID, etalon_ID, revision)
         self.paramname = paramname
         self.dimension = dimension
-        self.startdate = datetime.today() if startdate is None else startdate
-        self.datemin = 0
-        self.datemax = 0
-        self.imgpath = None
-
+        if startdate is None:
+            startdate = datetime.now().strftime("%Y-%m-%d %H:%M:%S.000")
+        self.startdate = startdate
         self.refmean = None
         self.refstd = None
         self.uncertainty = None
+        self.comment = comment
+
+        self.imgpath = None
+
         self.dates = np.array([])
         self.points = np.array([])
 
@@ -36,18 +39,36 @@ class ControlChart(object):
         c.execute(select_cc, [ID])
         args = c.fetchone()
         c.execute(select_data, [ID])
-        dates, points = list(*zip([d for d in c]))
+        dates, points = list(*zip(list(c)))
 
         cc = ControlChart(*args[1:])
         cc.add_points(dates, points)
 
         return cc
 
+    @classmethod
+    def from_params(cls, ccparams: CCParams):
+        data = ccparams.asvals()
+        cc = cls(*data)
+        if all(data[4:]):
+            cc.reference_from_stats(*data[4:])
+        return cc
+
+    @staticmethod
+    def load(path=None):
+        import pickle
+        import gzip
+        if path is None:
+            path = cacheroot + "cchart.pkl.gz"
+        with gzip.open(path, "rb") as handle:
+            cc = pickle.load(handle)
+        return cc
+
     def reference_from_points(self, refpoints):
         self.refmean = refpoints.mean()
         self.refstd = refpoints.std()
 
-    def reference_from_stats(self, refmean, refstd, uncertainty=None):
+    def reference_from_stats(self, refmean, refstd, uncertainty):
         self.refmean = refmean
         self.refstd = refstd
         self.uncertainty = uncertainty
@@ -68,8 +89,6 @@ class ControlChart(object):
             dates = dates.tolist()
         self.points = np.append(self.points, points)
         self.dates = np.append(self.dates, dates)
-        self.datemin = np.min(self.dates)
-        self.datemax = np.max(self.dates)
 
     def delete_points(self, dates):
         self.points = self.points[self.dates != dates]
@@ -84,17 +103,28 @@ class ControlChart(object):
         chain += "Paraméter: {}\n".format(self.paramname)
         chain += "Etalon: {}\n".format(self.etalon_ID)
         chain += "{}. revízió\n".format(self.revision)
-        chain += "{} -- {}\n".format(self.datemin, self.datemax)
+        chain += "{} -- {}\n".format(np.min(self.dates), np.max(self.dates))
         print(chain)
         return chain
 
     def tabledata(self):
-        out = [self.ID, self.paramname, self.dimension,
-               self.refmean, self.refstd, self.uncertainty]
-        return out
+        return [self.ID, self.paramname, self.dimension, self.revision, self.comment,
+                self.refmean, self.refstd, self.uncertainty]
+
+    def get_params(self):
+        return CCParams.from_ccobject(self)
 
     def plot(self, show=False):
         plotter = LeveyJenningsChart(self)
         plotter.dump()
         if show:
             plotter.plot()
+
+    def save(self, path=None):
+        import pickle
+        import gzip
+        if path is None:
+            path = cacheroot + "cchart.pkl.gz"
+        with gzip.open(path, "wb") as handle:
+            pickle.dump(self, handle)
+        return path

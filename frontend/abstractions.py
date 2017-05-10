@@ -3,9 +3,9 @@ import abc
 
 class CCHandlerMixin(abc.ABC):
 
-    def __init__(self, *args, **kw):
+    def __init__(self):
         self.ccobject = None
 
     @abc.abstractmethod
-    def set_cc(self, name, data):
+    def set_cc(self, data):
         raise NotImplementedError
