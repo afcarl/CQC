@@ -29,13 +29,18 @@ class DBConnection(object):
         self.methods = []
         self.conn = sql.connect(dbpath)
         self.x = self.conn.execute
-        self.create_db()
 
-    def create_db(self):
-        with open("backend/create.sql") as handle:
-            creates = handle.read().split(";\n")
-        with self.conn:
-            list(map(self.x, creates))
+    def get_ccs(self, mnum):
+        c = self.conn.cursor()
+        t0 = "Kontroll_diagram"
+        t1 = "Kontrolld_Modszer_kapcsolo"
+        c0 = ("id", "paramname", "dimension", "refmean",
+              "refstd", "uncertainty", "comment")
+        select = ("SELECT " + ", ".join(t0 + "." + c for c in c0) +
+                  f"FROM {t0} INNER JOIN {t1} ON {t0}.id == {t1}.djnum" +
+                  f"WHERE {t1}.djnum == ?;")
+        c.execute(select, mnum)
+        return list(c.fetchall())
 
     def new_cc(self, cc_object):
         insert = f"INSERT INTO Kontroll_diagram VALUES ({','.join('?'*8)})"

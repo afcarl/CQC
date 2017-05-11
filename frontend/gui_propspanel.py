@@ -1,5 +1,6 @@
-from tkinter import Label, Entry, Frame, Button, Toplevel
+from tkinter import Label, Frame, Button, Toplevel
 
+from .abstractions import tktable
 from .gui_widgets import RefPointsTL
 from ..backend.util import CCParams
 
@@ -20,7 +21,6 @@ class PropertiesPanel(Frame):
         self.reference_entry = None
 
         self._build_header_part()
-        self._add_sep()
         self._build_stats_part()
 
     @classmethod
@@ -45,15 +45,10 @@ class PropertiesPanel(Frame):
         return cctl
 
     def _build_header_part(self):
-        hf = Frame(self)
         labelconf = dict(justify="left", anchor="w", bd=1, relief="sunken", width=20)
         entryconf = dict(width=40)
-        for n, (field, var) in enumerate(zip(self.fields, self.data.headervars())):
-            Label(hf, text=field, cnf=labelconf
-                  ).grid(row=n, column=0, sticky="news")
-            e = Entry(hf, cnf=entryconf, textvariable=var)
-            e.grid(row=n, column=1, sticky="news")
-            self.entries[field] = e
+        hf = tktable(self, self.fields, self.data.headervars(),
+                     labelconf, entryconf)
         hf.pack()
         hf.grid_rowconfigure(0, weight=1)
         hf.grid_columnconfigure(0, weight=1)
@@ -65,19 +60,18 @@ class PropertiesPanel(Frame):
         sep.grid_columnconfigure(0, weight=1)
 
     def _build_stats_part(self):
+        lbconf = dict(justify="left", anchor="w", bd=1, relief="sunken", width=20)
+        entconf = dict(width=40)
         tf = Frame(self)
         Label(tf, text="Referencia statisztikák megadása (átlag, szórás, stb.)"
-              ).grid(row=0, column=0, columnspan=2, sticky="news")
+              ).pack(fill="both", expand=1)
         Button(tf, text="Átlag és szórás számítása", command=self._launch_refentry
-               ).grid(row=1, column=0, columnspan=2, sticky="news")
-        for rown, (tx, var) in enumerate(zip(
-                ("Átlag", "Szórás", "Mérési bizonytalanság"),
-                self.data.statvars()), start=2):
-
-            Label(tf, text=tx, justify="left", anchor="w", bd=1, relief="sunken", width=20
-                  ).grid(row=rown, column=0, sticky="news")
-            Entry(tf, textvar=var, width=40
-                  ).grid(row=rown, column=1, sticky="news")
+               ).pack(fill="both", expand=1)
+        container = tktable(tf, ("Átlag", "Szórás", "Mérési bizonytalanság"),
+                            self.data.statvars(), lbconf, entconf)
+        container.pack(fill="both", expand=1)
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
         tf.pack(fill="both", expand=1)
         tf.grid_rowconfigure(0, weight=1)
         tf.grid_columnconfigure(0, weight=1)

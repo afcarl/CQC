@@ -10,17 +10,15 @@ from .util import CCParams, cacheroot
 
 class ControlChart(object):
 
-    def __init__(self, method_ID, etalon_ID, revision, paramname, dimension,
-                 startdate=None, comment=None):
-        self.method_ID = method_ID
-        self.etalon_ID = etalon_ID
+    def __init__(self, mname, rmat, pname, dim, revision,
+                 comment=None):
+        self.method_ID = mname
+        self.etalon_ID = rmat
         self.revision = revision
-        self.ID = "KD-{}-{}-{}".format(method_ID, etalon_ID, revision)
-        self.paramname = paramname
-        self.dimension = dimension
-        if startdate is None:
-            startdate = datetime.now().strftime("%Y-%m-%d %H:%M:%S.000")
-        self.startdate = startdate
+        self.ID = "KD-{}-{}-{}".format(mname, rmat, revision)
+        self.paramname = pname
+        self.dimension = dim
+        self.creation = datetime.now().strftime("%Y-%m-%d %H:%M:%S.000")
         self.refmean = None
         self.refstd = None
         self.uncertainty = None

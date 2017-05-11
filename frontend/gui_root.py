@@ -1,4 +1,5 @@
 from tkinter import Tk, Menu, Frame
+from tkinter import messagebox as tkmb
 
 from .gui_widgets import ChartHolder
 from .gui_propspanel import PropertiesPanel
@@ -15,6 +16,7 @@ class Rootwin(Tk):
         self.dbifc = DBConnection(cacheroot+"TestDb.db", cacheroot+"meta.dat")
 
         self.saved = True
+        self.pklpath = None
         self.active_panel = None
         self.active_toplevel = None
 
@@ -53,11 +55,15 @@ class Rootwin(Tk):
         self.canvas.set_ccobject(ccobj)
 
     def _savecc_cmd(self):
-        pass
+        self.pklpath = self.canvas.ccobject.save()
+        self.saved = True
 
     def _newcc_cmd(self):
         if not self.saved:
-            pass
+            msg = ("A jelenlegi állapot nincs elmentve.",
+                   "Szeretnéd menteni?")
+            if tkmb.askyesno("Mentetlen adat!", "\n".join(msg)):
+                self._savecc_cmd()
 
     def _build_ccmenu(self):
         fm = Menu(self.menubar, tearoff=0)

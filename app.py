@@ -16,8 +16,8 @@ def show_mpl_plot():
     dates = np.linspace(0, 100, N)
     mn, st, unc = 10., 3., 10.
     points = (np.random.randn(N) * st) + mn
-    cc = ControlChart(method_ID="NAVSZI_123", etalon_ID="BFG 9000",
-                      paramname="TesztParaméter", dimension="m/s**2")
+    cc = ControlChart(mname="NAVSZI_123", rmat="BFG 9000",
+                      pname="TesztParaméter", dim="m/s**2")
     cc.reference_from_stats(mn, st, unc)
     cc.add_points(dates, points)
     cc.report()
