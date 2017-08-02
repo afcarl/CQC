@@ -5,7 +5,8 @@ from datetime import datetime
 import numpy as np
 
 from .plot_cc import LeveyJenningsChart
-from .util import CCParams, cacheroot
+from .util import cacheroot
+from backend.parameter import CCParams
 
 
 class ControlChart(object):
@@ -15,7 +16,7 @@ class ControlChart(object):
         self.method_ID = mname
         self.etalon_ID = rmat
         self.revision = revision
-        self.ID = "KD-{}-{}-{}".format(mname, rmat, revision)
+        self.ID = "KD-{}-{}".format(pname, revision)
         self.paramname = pname
         self.dimension = dim
         self.creation = datetime.now().strftime("%Y-%m-%d %H:%M:%S.000")
@@ -121,8 +122,10 @@ class ControlChart(object):
     def save(self, path=None):
         import pickle
         import gzip
+
         if path is None:
             path = cacheroot + "cchart.pkl.gz"
         with gzip.open(path, "wb") as handle:
             pickle.dump(self, handle)
+        print("CCObject: dumped to", path)
         return path

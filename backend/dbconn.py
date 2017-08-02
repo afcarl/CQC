@@ -30,7 +30,23 @@ class DBConnection(object):
         self.conn = sql.connect(dbpath)
         self.x = self.conn.execute
 
-    def get_ccs(self, mnum):
+    def get_methods(self):
+        c = self.conn.cursor()
+        select = "SELECT id, name, mnum, akkn FROM Modszer"
+        c.execute(select)
+        return list(c.fetchall())
+
+    def get_params(self, mID):
+        c = self.conn.cursor()
+        t0 = "Parameter"
+        t1 = "Modszer"
+        select = (f"SELECT {t0}.id, {t0}.name, {t0}.dimension FROM",
+                  f"{t0} INNER JOIN {t1} ON {t1}.id == {t0}.modszer_id",
+                  f"WHERE {t1}.id == ?;")
+        c.execute(" ".join(select), [mID])
+        return list(c.fetchall())
+
+    def get_ccs(self, pID):
         c = self.conn.cursor()
         t0 = "Kontroll_diagram"
         t1 = "Kontrolld_Modszer_kapcsolo"

@@ -1,21 +1,23 @@
 from tkinter import Tk, Menu, Frame
 from tkinter import messagebox as tkmb
 
-from .gui_widgets import ChartHolder
-from .gui_propspanel import PropertiesPanel
+from ccmanager.chartholder import ChartHolder
+from .propspanel import PropertiesPanel
 
-from ..backend.plot_cc import cacheroot
-from ..backend.dbconn import DBConnection
+from backend import globvars
+from backend.plot_cc import cacheroot
+from backend.dbconn import DBConnection
 
 
-class Rootwin(Tk):
+class CCManagerRoot(Frame):
 
-    def __init__(self):
-        super().__init__()
-        self.title("CQC - Minőségirányítás - Kontroll diagram modul")
+    def __init__(self, master: Tk, **kw):
+        super().__init__(master, **kw)
+        globvars.logical_root = self
+
+        self.master.title("CQC - Minőségirányítás - Kontroll diagram modul")
         self.dbifc = DBConnection(cacheroot+"TestDb.db", cacheroot+"meta.dat")
 
-        self.saved = True
         self.pklpath = None
         self.active_panel = None
         self.active_toplevel = None
@@ -24,52 +26,53 @@ class Rootwin(Tk):
         self._build_ccmenu()
         self._build_viewmenu()
         self._build_pointsmenu()
-        self.config(menu=self.menubar)
+        self.master.config(menu=self.menubar)
 
         self.mainframe = Frame(self)
         self.mainframe.pack(fill="both", expand=1)
 
-        self.canvas = ChartHolder(self.mainframe)
-        self.canvas.update_image()
+        self.chartholder = ChartHolder(self.mainframe)
+        self.chartholder.update_image()
 
         self.propspanel = PropertiesPanel(self.mainframe)
         self.activate_panel("properties")
-
-        # self.resizable(False, False)
-
-    def _select_component(self, cname):
-        components = {
-            "control chart": self.canvas,
-            "properties": self.propspanel,
-        }
-        return components[cname]
+        self.pack()
 
     def activate_panel(self, what):
         if self.active_panel is not None:
             self.active_panel.pack_forget()
-        self.active_panel = self._select_component(what)
+        self.active_panel = {"control chart": self.chartholder,
+                             "properties": self.propspanel}[what]
         self.active_panel.pack(fill="both", expand=1)
 
     def display(self, ccobj):
-        self.canvas = ChartHolder(self.mainframe)
-        self.canvas.set_ccobject(ccobj)
+        self.chartholder = ChartHolder(self.mainframe)
+        self.chartholder.set_ccobject(ccobj)
 
-    def _savecc_cmd(self):
-        self.pklpath = self.canvas.ccobject.save()
-        self.saved = True
+    def savecc_cmd(self):
+        if not globvars.saved:
+            globvars.saved = True
+            self.pklpath = self.chartholder.ccobject.save()
+        self.propspanel.lock()
 
-    def _newcc_cmd(self):
-        if not self.saved:
+    def newcc_cmd(self):
+        if not globvars.saved:
             msg = ("A jelenlegi állapot nincs elmentve.",
                    "Szeretnéd menteni?")
             if tkmb.askyesno("Mentetlen adat!", "\n".join(msg)):
-                self._savecc_cmd()
+                self.savecc_cmd()
+
+    def opencc_cmd(self):
+        print("opencc_cmd called!")
+
+    def deletecc_cmd(self):
+        print("Called deletecc_cmd!")
 
     def _build_ccmenu(self):
         fm = Menu(self.menubar, tearoff=0)
-        fm.add_command(label="Új...", command=lambda: self.newcc_cmd("CreateCC"))
-        fm.add_command(label="Megnyitás...")
-        fm.add_command(label="Mentés")
+        fm.add_command(label="Új...", command=self.newcc_cmd)
+        fm.add_command(label="Megnyitás...", command=self.opencc_cmd)
+        fm.add_command(label="Mentés", command=self.savecc_cmd)
         fm.add_command(label="Mentés másként...")
         fm.add_separator()
         fm.add_command(label="Tulajdonságok...")
@@ -94,5 +97,5 @@ class Rootwin(Tk):
         self.menubar.add_cascade(label="Pontok", menu=pm)
 
     def _update_plot(self):
-        self.canvas.config(image=self.ccimg)
+        self.chartholder.config(image=self.ccimg)
         self.saved = False
