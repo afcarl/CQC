@@ -37,12 +37,12 @@ class CCParams:
 
     def __getitem__(self, item):
         if item not in self.__dict__:
-            raise KeyError("No such param: " + item)
+            raise KeyError("No such param: " + str(item))
         return self.__dict__[item]
 
     def __setitem__(self, key, value):
         if key not in self.__dict__:
-            raise KeyError("No such param: ", + key)
+            raise KeyError("No such param: " + str(key))
         self.__dict__[key].set(value)
 
     def asvars(self):

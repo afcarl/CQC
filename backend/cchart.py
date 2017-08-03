@@ -11,8 +11,8 @@ from backend.parameter import CCParams
 
 class ControlChart(object):
 
-    def __init__(self, mname, rmat, pname, dim, revision,
-                 comment=None):
+    def __init__(self, owner, mname, rmat, pname, dim, revision, comment=None):
+        self.owner_tasz = owner
         self.method_ID = mname
         self.etalon_ID = rmat
         self.revision = revision
@@ -24,11 +24,9 @@ class ControlChart(object):
         self.refstd = None
         self.uncertainty = None
         self.comment = comment
-
         self.imgpath = None
 
-        self.dates = np.array([])
-        self.points = np.array([])
+        self.series = []
 
     @classmethod
     def from_database(cls, ID, dbhandle):
@@ -48,9 +46,8 @@ class ControlChart(object):
     @classmethod
     def from_params(cls, ccparams: CCParams):
         data = ccparams.asvals()
-        cc = cls(*data)
-        if all(data[4:]):
-            cc.reference_from_stats(*data[4:])
+        cc = cls(*data[:6])
+        cc.reference_from_stats(*data[6:])
         return cc
 
     @staticmethod
@@ -107,13 +104,15 @@ class ControlChart(object):
         return chain
 
     def tabledata(self):
-        return [self.ID, self.paramname, self.dimension, self.revision, self.comment,
+        return [self.owner_tasz, self.paramname, self.dimension, self.revision, self.comment,
                 self.refmean, self.refstd, self.uncertainty]
 
     def get_params(self):
         return CCParams.from_ccobject(self)
 
     def plot(self, show=False):
+        if not self.plottable:
+            raise RuntimeError("Not plottable!")
         plotter = LeveyJenningsChart(self)
         plotter.dump()
         if show:
@@ -129,3 +128,7 @@ class ControlChart(object):
             pickle.dump(self, handle)
         print("CCObject: dumped to", path)
         return path
+
+    @property
+    def plottable(self):
+        return len(self.points) > 5

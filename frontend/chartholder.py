@@ -23,8 +23,8 @@ class ChartHolder(Frame):
     def movescale(self, n):
         print("movescale called with n =", n)
 
-    def new_ccobject(self, args):
-        self.ccobject = ControlChart(*args)
+    def new_ccobject(self, ccparams):
+        self.ccobject = ControlChart.from_params(ccparams)
         self.update_image()
 
     def set_ccobject(self, ccobj):
@@ -32,7 +32,7 @@ class ChartHolder(Frame):
         self.update_image()
 
     def update_image(self):
-        if self.ccobject is None:
+        if self.ccobject is None or not self.ccobject.plottable:
             self.ccimg = PhotoImage(file=emptyccimg)
         else:
             self.ccimg = PhotoImage(file=self.ccobject.plot())

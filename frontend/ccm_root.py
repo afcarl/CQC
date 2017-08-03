@@ -1,12 +1,12 @@
 from tkinter import Tk, Menu, Frame
 from tkinter import messagebox as tkmb
 
-from ccmanager.chartholder import ChartHolder
-from .propspanel import PropertiesPanel
-
 from backend import globvars
 from backend.plot_cc import cacheroot
-from backend.dbconn import DBConnection
+from frontend.chartholder import ChartHolder
+from dbconnection.interface import DBConnection
+
+from .propspanel import PropertiesPanel
 
 
 class CCManagerRoot(Frame):
@@ -16,6 +16,7 @@ class CCManagerRoot(Frame):
         globvars.logical_root = self
 
         self.master.title("CQC - Minőségirányítás - Kontroll diagram modul")
+
         self.dbifc = DBConnection(cacheroot+"TestDb.db", cacheroot+"meta.dat")
 
         self.pklpath = None
@@ -29,21 +30,21 @@ class CCManagerRoot(Frame):
         self.master.config(menu=self.menubar)
 
         self.mainframe = Frame(self)
-        self.mainframe.pack(fill="both", expand=1)
+        self.mainframe.pack(fill="both", expand=True)
 
         self.chartholder = ChartHolder(self.mainframe)
         self.chartholder.update_image()
 
         self.propspanel = PropertiesPanel(self.mainframe)
-        self.activate_panel("properties")
-        self.pack()
+        self.activate_panel("control chart")
+        self.pack(fill="both", expand=True)
 
     def activate_panel(self, what):
         if self.active_panel is not None:
             self.active_panel.pack_forget()
         self.active_panel = {"control chart": self.chartholder,
                              "properties": self.propspanel}[what]
-        self.active_panel.pack(fill="both", expand=1)
+        self.active_panel.pack(fill="both", expand=True)
 
     def display(self, ccobj):
         self.chartholder = ChartHolder(self.mainframe)
@@ -52,7 +53,9 @@ class CCManagerRoot(Frame):
     def savecc_cmd(self):
         if not globvars.saved:
             globvars.saved = True
-            self.pklpath = self.chartholder.ccobject.save()
+            if self.chartholder.ccobject is None:
+                self.chartholder.new_ccobject(self.propspanel.pull_data())
+            self.chartholder.ccobject.save()
         self.propspanel.lock()
 
     def newcc_cmd(self):
@@ -61,6 +64,9 @@ class CCManagerRoot(Frame):
                    "Szeretnéd menteni?")
             if tkmb.askyesno("Mentetlen adat!", "\n".join(msg)):
                 self.savecc_cmd()
+        self.activate_panel("properties")
+        self.propspanel.unlock()
+        globvars.saved = False
 
     def opencc_cmd(self):
         print("opencc_cmd called!")
@@ -95,7 +101,3 @@ class CCManagerRoot(Frame):
         pm.add_separator()
         pm.add_command(label="Formatábla beforgarása")
         self.menubar.add_cascade(label="Pontok", menu=pm)
-
-    def _update_plot(self):
-        self.chartholder.config(image=self.ccimg)
-        self.saved = False

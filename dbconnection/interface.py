@@ -1,38 +1,35 @@
-from __future__ import print_function, absolute_import, unicode_literals
-
 import sqlite3 as sql
 
-
-class MetaHandler(object):
-
-    @staticmethod
-    def read(path):
-        try:
-            with open(path) as fileobj:
-                data = fileobj.read()
-        except FileNotFoundError:
-            print("MetaHandler: no metadata file :(")
-            return {}
-        lines = data.split("\n")
-        mapping = {
-            k.strip(): v.strip() for k, v in
-            [line.split(":") for line in lines if line]
-        }
-        return mapping
+from backend.util import DBPATH, METAPATH
 
 
-class DBConnection(object):
+def read_meta(path):
+    try:
+        with open(path) as fileobj:
+            data = fileobj.read()
+    except FileNotFoundError:
+        print("MetaHandler: no metadata file :(")
+        return {}
+    lines = data.split("\n")
+    mapping = {
+        k.strip(): v.strip() for k, v in
+        [line.split(":") for line in lines if line]
+    }
+    return mapping
 
-    def __init__(self, dbpath, metapath):
-        self.__dict__.update(MetaHandler.read(metapath))
-        self.__dict__.update({k: v for k, v in locals().items() if k != "self"})
-        self.methods = []
-        self.conn = sql.connect(dbpath)
-        self.x = self.conn.execute
+
+class DBConnection:
+    """
+    Modszer -E Parameter -E Kontroll_diagram -E Kontroll_meres
+    """
+
+    conn = sql.connect(DBPATH)
+    x = conn.execute
+    meta = read_meta(METAPATH)
 
     def get_methods(self):
         c = self.conn.cursor()
-        select = "SELECT id, name, mnum, akkn FROM Modszer"
+        select = "SELECT id, name, mnum, akkn, allomany_id FROM Modszer"
         c.execute(select)
         return list(c.fetchall())
 
@@ -48,15 +45,34 @@ class DBConnection(object):
 
     def get_ccs(self, pID):
         c = self.conn.cursor()
-        t0 = "Kontroll_diagram"
-        t1 = "Kontrolld_Modszer_kapcsolo"
-        c0 = ("id", "paramname", "dimension", "refmean",
-              "refstd", "uncertainty", "comment")
-        select = ("SELECT " + ", ".join(t0 + "." + c for c in c0) +
-                  f"FROM {t0} INNER JOIN {t1} ON {t0}.id == {t1}.djnum" +
-                  f"WHERE {t1}.djnum == ?;")
-        c.execute(select, mnum)
+        cct = "Kontroll_diagram"
+        pt = "Parameter"
+        ccf = ", ".join(cct + "." + c for c in
+                        ("id", "refmean", "refstd", "uncertainty", "comment"))
+        pf = ", ".join(pt + "." + c for c in ("id", "name", "dimension"))
+        select = " ".join(
+            ((f"SELECT {ccf}, {pf} FROM",
+              f"{cct} INNER JOIN {pt} ON {cct}.parameter_id == {pt}.id",
+              f"WHERE {pt}.id == ?;"))
+        )
+        c.execute(select, [pID])
         return list(c.fetchall())
+
+    def get_measurements(self, ccID):
+        c = self.conn.cursor()
+        t0 = "Kontroll_diagram"
+        t1 = "Kontroll_meres"
+        c1 = ", ".join(t1 + "." + c for c in ("id", "date", "value", "comment"))
+        select = (f"SELECT {c1} FROM",
+                  f"{t1} INNER JOIN {t0} ON {t0}.id == {t1}.kontroll_diagram_id",
+                  f"WHERE {t0}.id == ?;")
+        c.execute(" ".join(select), [ccID])
+        return list(c.fetchall())
+
+    def get_username(self, tasz):
+        c = self.conn.cursor()
+        c.execute("SELECT name FROM Allomany WHERE tasz == ?;", (tasz,))
+        return c.fetchone()[0]
 
     def new_cc(self, cc_object):
         insert = f"INSERT INTO Kontroll_diagram VALUES ({','.join('?'*8)})"

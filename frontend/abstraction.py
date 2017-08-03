@@ -10,12 +10,18 @@ class TkTable(Frame):
         self.es = []
         lcnf = {} if lcnf is None else lcnf
         ecnf = {} if ecnf is None else ecnf
-
+        w = max(len(f) for f in fields)
         for i, (fld, var) in enumerate(zip(fields, tkvars)):
-            self.ls.append(Label(self, text=fld, cnf=lcnf))
+            self.ls.append(Label(self, text=fld, cnf=lcnf, width=w))
             self.ls[-1].grid(row=i, column=0, sticky="news")
             self.es.append(Entry(self, textvariable=var, cnf=ecnf))
             self.es[-1].grid(row=i, column=1, sticky="news")
+        for e in self.es[:-1]:
+            e.bind("<Return>", self._focusjump)
+
+    def _focusjump(self, event):
+        i = self.es.index(event.widget)
+        self.es[i+1].focus_set()
 
     def lock(self):
         for e in self.es:

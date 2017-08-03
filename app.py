@@ -2,19 +2,12 @@ from tkinter import Tk
 
 import numpy as np
 
-from ccmanager.ccm_root import CCManagerRoot
-from methodmanager.mm_root import MethodManagerRoot
+from frontend.ccm_root import CCManagerRoot
 
 
 def ccmanager_main():
     root = Tk()
     root = CCManagerRoot(root)
-    root.mainloop()
-
-
-def mmanager_main():
-    root = Tk()
-    root = MethodManagerRoot(root)
     root.mainloop()
 
 
@@ -39,4 +32,4 @@ def show_mpl_plot():
 
 
 if __name__ == '__main__':
-    mmanager_main()
+    ccmanager_main()
