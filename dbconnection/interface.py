@@ -24,7 +24,8 @@ class DBConnection:
     """
 
     conn = sql.connect(DBPATH)
-    x = conn.execute
+    c = conn.cursor()
+    x = c.execute
     meta = read_meta(METAPATH)
 
     def get_methods(self):
@@ -74,18 +75,37 @@ class DBConnection:
         c.execute("SELECT name FROM Allomany WHERE tasz == ?;", (tasz,))
         return c.fetchone()[0]
 
+    def ccobj_args(self, ccID):
+        cccol = ["startdate", "refmaterial", "refmean", "refstd", "uncertainty", "comment"]
+        pcol = ["name", "dimension"]
+        acol = ["name"]
+        t0, t1, t2 = "Kontroll_diagram", "Parameter", "Allomany"
+        c0 = ", ".join(t0 + "." + c for c in cccol)
+        c1 = ", ".join(t1 + "." + c for c in pcol)
+        c2 = ", ".join(t2 + "." + c for c in acol)
+        getdata = " ".join((
+            f"SELECT {c0}, {c1}, {c2}",
+            f"FROM {t0} INNER JOIN {t1} ON {t0}.parameter_id == {t1}.id",
+            f"INNER JOIN {t2} ON {t0}.allomany_id == {t2}.tasz",
+            f" WHERE {t0}.id == ?;"
+        ))
+        self.x(getdata, (ccID,))
+        ccdata = dict(zip(cccol + ["paramname", "dimension", "owner"], self.c.fetchone()))
+        points = self.get_measurements(ccID)
+        return ccdata, points if len(points) else None
+
     def new_cc(self, cc_object):
         insert = f"INSERT INTO Kontroll_diagram VALUES ({','.join('?'*8)})"
         params = cc_object.tabledata()
         with self.conn:
             self.x(insert, params)
 
-    def delete_cc(self, cc_object):
+    def delete_cc(self, ccID):
         delete_data = "DELETE * FROM Kontroll_meres WHERE cc_id == ?;"
         delete_cc = "DELETE * FROM Kontroll_diagram WHERE id == ?;"
         with self.conn:
-            self.x(delete_data, [cc_object.ID])
-            self.x(delete_cc, [cc_object.ID])
+            self.x(delete_data, [ccID])
+            self.x(delete_cc, [ccID])
 
     def update_cc(self, cc_object):
         update = "UPDATE Kontrol_diagram SET "

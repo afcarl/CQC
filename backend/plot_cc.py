@@ -3,15 +3,14 @@ from scipy import stats
 
 from matplotlib import pyplot as plt
 
-from .util import cacheroot
-
 
 class LeveyJenningsChart(object):
 
+    ax = plt.gca()
+    Xs = None
+
     def __init__(self, cc):
         self.cc = cc
-        self.ax = plt.gca()
-        self.Xs = None
 
     def _plot_hlines(self):
 
@@ -55,7 +54,7 @@ class LeveyJenningsChart(object):
                              horizontalalignment="right", verticalalignment=va)
 
         Ys = np.array(self.cc.points)
-        Xs = np.linspace(1., len(Ys), len(Ys))
+        Xs = np.arange(1, len(Ys)+1)
         ywlim = self.cc.refmean - 1.9 * self.cc.refstd, self.cc.refmean + 1.9 * self.cc.refstd
         rdlim = self.cc.refmean - 2.9 * self.cc.refstd, self.cc.refmean + 2.9 * self.cc.refstd
         yargs = np.concatenate((np.argwhere((rdlim[0] < Ys) & (Ys < ywlim[0])),
@@ -84,7 +83,7 @@ class LeveyJenningsChart(object):
 
     def _set_titles(self):
         pst = "Kontroll diagram {} paraméterhez".format(self.cc.paramname)
-        pt = "Anyagminta: {}\n{}. revízió".format(self.cc.etalon_ID, self.cc.revision)
+        pt = "Anyagminta: {}".format(self.cc.refmaterial)
         plt.title("\n".join((pst, pt)), fontsize=12)
 
     def _create_plot(self, trend=False, annot=True):
@@ -102,14 +101,10 @@ class LeveyJenningsChart(object):
         plt.tight_layout()
         plt.subplots_adjust(left=0.07, right=0.95)
 
-    def plot(self):
+    def plot(self, show=True, dumppath=None):
         self._create_plot()
-        plt.show()
-
-    def dump(self, path=None):
-        self._create_plot()
-        if path is None:
-            path = cacheroot + "cc_pic.png"
-        plt.savefig(path if path is not None else cacheroot + "cc_pic.png")
-        self.cc.imgpath = path
-        return path
+        if show:
+            plt.show()
+        if dumppath is not None:
+            plt.savefig(dumppath)
+        return dumppath

@@ -1,9 +1,12 @@
-from tkinter import Tk, Menu, Frame
-from tkinter import messagebox as tkmb
+from tkinter import Tk, Menu, Frame, messagebox as tkmb
 
 from backend import globvars
-from backend.plot_cc import cacheroot
+from backend.cchart import ControlChart
+from backend.parameter import CCParam
+
 from frontend.chartholder import ChartHolder
+from frontend.selection_wizard import SelectionWizard
+
 from dbconnection.interface import DBConnection
 
 from .propspanel import PropertiesPanel
@@ -17,7 +20,7 @@ class CCManagerRoot(Frame):
 
         self.master.title("CQC - Minőségirányítás - Kontroll diagram modul")
 
-        self.dbifc = DBConnection(cacheroot+"TestDb.db", cacheroot+"meta.dat")
+        self.dbifc = DBConnection()
 
         self.pklpath = None
         self.active_panel = None
@@ -54,7 +57,9 @@ class CCManagerRoot(Frame):
         if not globvars.saved:
             globvars.saved = True
             if self.chartholder.ccobject is None:
-                self.chartholder.new_ccobject(self.propspanel.pull_data())
+                points = None  # TODO: work more on the points part!
+                ID, ccparam = self.propspanel.pull_data()
+                self.chartholder.set_ccobject(ControlChart(ccparam, ID, points))
             self.chartholder.ccobject.save()
         self.propspanel.lock()
 
@@ -64,15 +69,38 @@ class CCManagerRoot(Frame):
                    "Szeretnéd menteni?")
             if tkmb.askyesno("Mentetlen adat!", "\n".join(msg)):
                 self.savecc_cmd()
-        self.activate_panel("properties")
+        self.propspanel.destroy()
+        self.propspanel = PropertiesPanel(self.mainframe)
         self.propspanel.unlock()
+        self.activate_panel("properties")
         globvars.saved = False
 
     def opencc_cmd(self):
-        print("opencc_cmd called!")
+        wiz = SelectionWizard(self)
+        self.wait_window(wiz)
+        if wiz.selection["cc"] is None:
+            return
+        ccID = wiz.selection["cc"]
+        ccdata, points = self.dbifc.ccobj_args(ccID)
+        ccparam = CCParam.from_values(ccdata)
+        self.chartholder.set_ccobject(
+            ControlChart(ID=ccID, ccparam=ccparam, points=points)
+        )
+        self.propspanel.destroy()
+        self.propspanel = PropertiesPanel(self.mainframe, ccparam)
+        self.activate_panel("properties")
 
     def deletecc_cmd(self):
-        print("Called deletecc_cmd!")
+        msg = "Valóban törölni szeretnéd a kontroll diagramot?"
+        if not tkmb.askyesno("Törlés megerősítése", msg):
+            return
+        ccobject = self.chartholder.ccobject
+        self.chartholder.set_ccobject(None)
+        self.propspanel = PropertiesPanel(self.mainframe)
+        if ccobject.ID is not None:
+            self.dbifc.delete_cc(ccobject.ID)
+            path = ccobject.backup()
+            print("Backed up ControlChart object to", path)
 
     def _build_ccmenu(self):
         fm = Menu(self.menubar, tearoff=0)

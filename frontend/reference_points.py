@@ -59,8 +59,8 @@ class RefPointsTL(Toplevel):
 
     def push_data_upstream(self, average, std):
         print("Pushed upstream!")
-        self.master.data["mean"] = average
-        self.master.data["std"] = std
+        self.master.data["refmean"] = average
+        self.master.data["refstd"] = std
 
     def pull_data(self):
         try:

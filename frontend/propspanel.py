@@ -4,7 +4,7 @@ from backend import globvars
 
 from .abstraction import TkTable, replace_toplevel
 from .reference_points import RefPointsTL
-from backend.parameter import CCParams
+from backend.parameter import CCParam
 
 
 pkw = dict(fill="both", expand=True)
@@ -12,20 +12,21 @@ pkw = dict(fill="both", expand=True)
 
 class PropertiesPanel(Frame):
 
-    def __init__(self, master, ccparams=None, **kw):
+    def __init__(self, master, ccparam=None, **kw):
         super().__init__(master, **kw)
         root = globvars.logical_root
 
-        self.data = CCParams() if ccparams is None else ccparams
+        self.data = CCParam() if ccparam is None else ccparam  # type: CCParam
         self.reference_entry = None
         self.calc_button = None
 
-        hfields = ("Módszer", "Anyagminta", "Mért paraméter neve",
-                   "Mértékegység", "Revízió", "Megjegyzés")
+        hfields = ("Felvéve", "Anyagminta", "Paraméter", "Mértékegység", "Felelős", "Megjegyzés")
         sfields = ("Átlag", "Szórás", "Mérési bizonytalanság")
 
-        self.header = HeaderPart(self, fieldnames=hfields, tkvars=self.data.headervars())
-        self.stats = StatsPart(self, fieldnames=sfields, tkvars=self.data.statvars())
+        var = self.data.asvars()
+
+        self.header = HeaderPart(self, fieldnames=hfields, tkvars=var[:2] + var[5:])
+        self.stats = StatsPart(self, fieldnames=sfields, tkvars=var[2:5])
         self.header.pack(**pkw)
         self.stats.pack(**pkw)
         self.lock()

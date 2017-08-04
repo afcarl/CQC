@@ -1,59 +1,48 @@
 from tkinter import StringVar
 
-from backend.util import floatify
 
+class CCParam:
 
-class CCParams:
+    paramnames = ("startdate", "refmaterial", "refmean", "refstd", "uncertainty",
+                  "paramname", "dimension", "owner", "comment")
+    stats = ("refmean", "refstd", "uncertainty")
 
-    def __init__(self, mname=None, rmat=None, pname=None, dim=None,
-                 revision=None, comment=None,
-                 mean=None, std=None, uncertainty=None):
+    def __init__(self, startdate=None, refmaterial=None,
+                 refmean=None, refstd=None, uncertainty=None,
+                 comment=None, paramname=None, dimension=None, owner=None):
 
-        self._paramnames = ("mname", "rmat", "pname", "dim", "revision", "comment",
-                            "mean", "std", "uncertainty")
-        self.__dict__.update({
-            k: v for k, v in locals().items() if k != "self"
-        })
-        self.__dict__ = {
+        self.dictionary = {}
+        self.dictionary.update(locals())
+        self.dictionary.pop("self")
+        self.dictionary = {
             k: (StringVar(value="") if v is None else v)
-            for k, v in self.__dict__.items()
+            for k, v in self.dictionary.items()
         }
-        if not all(isinstance(v, StringVar) for k, v in self.__dict__.items()
+        if not all(isinstance(v, StringVar) for k, v in self.dictionary.items()
                    if k[0] != "_"):
             raise ValueError("CCParams must be initialized with StringVar instances!")
 
     @classmethod
-    def from_values(cls, header, stats):
-        return cls(*[StringVar(val) for val in header] +
-                    [StringVar(str(val).replace(".", ",")) for val in stats])
+    def from_values(cls, data):
+        return cls(**{k: StringVar(value=str(v)) for k, v in data.items()})
 
     @classmethod
     def from_ccobject(cls, ccobj):
-        c = ccobj
-        return cls.from_values(
-            [c.method_ID, c.etalon_ID, c.paramname, c.dimension, c.revision, c.comment],
-            [c.refmean, c.refstd, c.uncertainty]
-        )
+        return cls.from_values({k: ccobj.__dict__[k] for k in cls.paramnames})
 
     def __getitem__(self, item):
-        if item not in self.__dict__:
+        if item not in self.dictionary:
             raise KeyError("No such param: " + str(item))
-        return self.__dict__[item]
+        return self.dictionary[item]
 
     def __setitem__(self, key, value):
-        if key not in self.__dict__:
+        if key not in self.dictionary:
             raise KeyError("No such param: " + str(key))
-        self.__dict__[key].set(value)
+        self.dictionary[key].set(value)
 
     def asvars(self):
-        return tuple(self[pnm] for pnm in self._paramnames)
-
-    def headervars(self):
-        return self.asvars()[:6]
-
-    def statvars(self):
-        return self.asvars()[6:]
+        return [self.dictionary[var] for var in self.paramnames]
 
     def asvals(self):
-        return [var.get() for var in self.headervars()] + \
-               [floatify(var.get()) for var in self.statvars()]
+        return [float(var.get()) if k in self.stats else str(var.get())
+                for k, var in zip(self.paramnames, self.asvars())]

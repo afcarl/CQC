@@ -1,14 +1,13 @@
 from tkinter import Frame, Label, IntVar, Scale, PhotoImage
 
-from backend.cchart import ControlChart
 from backend.util import emptyccimg
 
 
 class ChartHolder(Frame):
 
-    def __init__(self, master, **kw):
+    def __init__(self, master, ccobj=None, **kw):
         super().__init__(master, **kw)
-        self.ccobject = None
+        self.ccobject = ccobj
         self.ccimg = None
         self.canvas = Label(self)
         self.canvas.pack()
@@ -22,10 +21,6 @@ class ChartHolder(Frame):
 
     def movescale(self, n):
         print("movescale called with n =", n)
-
-    def new_ccobject(self, ccparams):
-        self.ccobject = ControlChart.from_params(ccparams)
-        self.update_image()
 
     def set_ccobject(self, ccobj):
         self.ccobject = ccobj
