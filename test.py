@@ -3,7 +3,7 @@ from tkinter import Tk
 import numpy as np
 
 from backend.cchart import ControlChart
-from backend.parameter import CCParam
+from backend.parameter import Parameter
 
 
 mean = 1.
@@ -17,6 +17,6 @@ points = np.random.normal(mean, std, size=30)
 
 tk = Tk()
 
-cc = ControlChart(CCParam.from_values(dict(zip(CCParam.paramnames, data))), "TesztCC", points)
+cc = ControlChart(Parameter.from_values(dict(zip(Parameter.paramnames, data))), "TesztCC", points)
 cc.plot(show=True)
 

@@ -1,7 +1,6 @@
 from tkinter import Toplevel, Frame, Label, Button, messagebox as tkmb
 from tkinter.ttk import Treeview, Scrollbar
 
-
 from dbconnection.interface import DBConnection
 
 
@@ -52,7 +51,7 @@ class SelectionWizard(Toplevel):
         elif len(data) == 0:
             msg = "A választott módszerhez nincs rögzítve paraméter!"
             tkmb.showinfo("Információ", msg)
-            self.teardown()
+            self.destroy()
             return
         self.frame.destroy()
         self.frame = StageFrame(self, "param")
@@ -70,7 +69,7 @@ class SelectionWizard(Toplevel):
         elif len(data) == 0:
             msg = "A választott paraméterhez nem tartozik kontroll diagram!"
             tkmb.showinfo("Információ", msg)
-            self.teardown()
+            self.destroy()
             return
         self.frame.destroy()
         self.frame = StageFrame(self, "cc")
@@ -79,7 +78,7 @@ class SelectionWizard(Toplevel):
     def stage_final(self):
         if self.selection["cc"] is None:
             self.selection["cc"] = self.frame.data
-        self.teardown()
+        self.destroy()
 
     def query_methods(self):
         t0, t1 = "Modszer", "Allomany"
@@ -109,42 +108,51 @@ class SelectionWizard(Toplevel):
     def reset(self):
         pass
 
-    def teardown(self):
-        self.destroy()
-
 
 class StageFrame(Frame):
 
-    def __init__(self, master, frametype):
+    def __init__(self, master: SelectionWizard, frametype):
         super().__init__(master)
         title, colnames, widths, stepcb = master.arg[frametype]
         data = master.data[frametype]
 
+        self.data = None
+        self.tw = None
+
         Label(self, text=title).pack(**pkw)
 
-        self.data = None
+        self._build_treeview(data, colnames, widths)
+        self._build_buttonframe(stepcb)
 
-        tw = Treeview(self, columns=[str(i) for i in range(len(colnames)-1)])
-        vsb = Scrollbar(self, orient="vertical", command=tw.yview)
-        hsb = Scrollbar(self, orient="horizontal", command=tw.xview)
+    def _build_treeview(self, data, colnames, widths):
+        self.tw = Treeview(self, columns=[str(i) for i in range(len(colnames)-1)])
+        self._configure_treeview(data, colnames, widths)
+        self._add_scrollbar_to_treeview()
 
+        self.tw.bind("<<TreeviewSelect>>", self.setdata)
+        self.tw.pack(**pkw)
+
+    def _configure_treeview(self, data, colnames, widths):
         for col, name in enumerate(colnames):
-            tw.heading(f"#{col}", text=name)
+            self.tw.heading(f"#{col}", text=name)
         for col, cw in enumerate(widths):
-            tw.column(f"#{col}", width=cw)
+            self.tw.column(f"#{col}", width=cw)
         for row in data:
-            tw.insert("", "end", text=row[0], values=row[1:])
+            self.tw.insert("", "end", text=row[0], values=row[1:])
 
-        tw.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-        tw.bind("<<TreeviewSelect>>", self._setdata)
-        tw.pack(**pkw)
+    def _add_scrollbar_to_treeview(self):
+        vsb = Scrollbar(self, orient="vertical", command=self.tw.yview)
+        hsb = Scrollbar(self, orient="horizontal", command=self.tw.xview)
+        self.tw.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+    def _build_buttonframe(self, stepcb):
         f = Frame(self)
-        Button(f, text="Mégsem", command=master.reset).pack(side="left", **pkw)
+        Button(f, text="Mégsem", command=self.master.reset).pack(side="left", **pkw)
         self.nextb = Button(f, text="Tovább", command=stepcb, state="disabled")
         self.nextb.pack(side="left", **pkw)
         f.pack(**pkw)
 
-    def _setdata(self, event):
+    def setdata(self, event):
         sel = event.widget.selection(items="#0")
         self.data = event.widget.item(sel)["text"]
         self.nextb.configure(state="active")

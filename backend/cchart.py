@@ -2,17 +2,16 @@ import numpy as np
 
 from .plot_cc import LeveyJenningsChart
 from .util import cacheroot
-from .parameter import CCParam
 
 
 class ControlChart(object):
 
-    def __init__(self, ccparam: CCParam, ID=None, points=None):
-        assert isinstance(ccparam, CCParam)
+    def __init__(self, ccparam, methodparam, ID=None, points=None):
         self.ID = ID
         self.pointsdata = None if points is None else np.array(points)
         self.points = np.array([]) if points is None else self.pointsdata[:, 2].astype(float)
-        self.__dict__.update(dict(zip(ccparam.paramnames, ccparam.asvals())))
+        self.__dict__.update(dict(zip(ccparam.fields, ccparam.asvals())))
+        self.__dict__.update(dict(zip(methodparam.fields, ccparam.asvals())))
         pass
 
     @staticmethod

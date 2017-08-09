@@ -2,14 +2,13 @@ from tkinter import Tk, Menu, Frame, messagebox as tkmb
 
 from backend import globvars
 from backend.cchart import ControlChart
-from backend.parameter import CCParam
+from backend.parameter import AllParameter
 
 from frontend.chartholder import ChartHolder
 from frontend.selection_wizard import SelectionWizard
+from frontend.propspanel import PropertiesPanel
 
 from dbconnection.interface import DBConnection
-
-from .propspanel import PropertiesPanel
 
 
 class CCManagerRoot(Frame):
@@ -49,10 +48,6 @@ class CCManagerRoot(Frame):
                              "properties": self.propspanel}[what]
         self.active_panel.pack(fill="both", expand=True)
 
-    def display(self, ccobj):
-        self.chartholder = ChartHolder(self.mainframe)
-        self.chartholder.set_ccobject(ccobj)
-
     def savecc_cmd(self):
         if not globvars.saved:
             globvars.saved = True
@@ -73,6 +68,7 @@ class CCManagerRoot(Frame):
         self.propspanel = PropertiesPanel(self.mainframe)
         self.propspanel.unlock()
         self.activate_panel("properties")
+        self.chartholder.set_ccobject(None)
         globvars.saved = False
 
     def opencc_cmd(self):
@@ -82,7 +78,7 @@ class CCManagerRoot(Frame):
             return
         ccID = wiz.selection["cc"]
         ccdata, points = self.dbifc.ccobj_args(ccID)
-        ccparam = CCParam.from_values(ccdata)
+        ccparam = Parameter.from_values(ccdata)
         self.chartholder.set_ccobject(
             ControlChart(ID=ccID, ccparam=ccparam, points=points)
         )

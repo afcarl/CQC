@@ -1,19 +1,23 @@
+import abc
+
 from tkinter import StringVar
 
 
-class CCParam:
+class _Parameter(abc.ABC):
 
-    paramnames = ("startdate", "refmaterial", "refmean", "refstd", "uncertainty",
-                  "paramname", "dimension", "owner", "comment")
-    stats = ("refmean", "refstd", "uncertainty")
+    type = ""
+    fields = ()
 
-    def __init__(self, startdate=None, refmaterial=None,
-                 refmean=None, refstd=None, uncertainty=None,
-                 comment=None, paramname=None, dimension=None, owner=None):
+    def __init__(self, **kw):
+
+        invalid = [k for k in kw if k not in self.fields]
+        if invalid:
+            raise RuntimeError("Wrong keyword arguments: " + str(invalid))
 
         self.dictionary = {}
-        self.dictionary.update(locals())
-        self.dictionary.pop("self")
+        self.dictionary.update(kw)
+        if "self" in kw:
+            self.dictionary.pop("self")
         self.dictionary = {
             k: (StringVar(value="") if v is None else v)
             for k, v in self.dictionary.items()
@@ -28,7 +32,7 @@ class CCParam:
 
     @classmethod
     def from_ccobject(cls, ccobj):
-        return cls.from_values({k: ccobj.__dict__[k] for k in cls.paramnames})
+        return cls.from_values({k: ccobj.__dict__[k] for k in cls.fields})
 
     def __getitem__(self, item):
         if item not in self.dictionary:
@@ -41,8 +45,43 @@ class CCParam:
         self.dictionary[key].set(value)
 
     def asvars(self):
-        return [self.dictionary[var] for var in self.paramnames]
+        return [self.dictionary[var] for var in self.fields]
 
     def asvals(self):
-        return [float(var.get()) if k in self.stats else str(var.get())
-                for k, var in zip(self.paramnames, self.asvars())]
+        return [str(var.get()) for var in self.asvars()]
+
+
+class MethodParameter(_Parameter):
+
+    type = "methodparameter"
+    fields = ("methodnum", "method", "methodowner", "paramname", "dimension")
+
+
+class CCParameter(_Parameter):
+    
+    type = "ccparameter"
+    fields = ("startdate", "refmaterial", "ccowner", "comment")
+
+
+class StatParameter(_Parameter):
+
+    type = "statparameter"
+    fields = ("refmean", "refstd", "uncertainty")
+
+    def asvals(self):
+        return [float(var.get().replace(",", ".")) for var in self.asvars()]
+
+
+class AllParameter(_Parameter):
+
+    type = "allparameter"
+    fields = MethodParameter.fields + CCParameter.fields + StatParameter.fields
+
+    def __init__(self, methodparam: MethodParameter,
+                 ccparam: CCParameter,
+                 statparam: StatParameter):
+        super().__init__(
+            **dict(zip(methodparam.fields, methodparam.asvars())),
+            **dict(zip(ccparam.fields, ccparam.asvars())),
+            **dict(zip(statparam.fields, statparam.asvars()))
+        )

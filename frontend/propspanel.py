@@ -1,10 +1,10 @@
 from tkinter import Label, Frame, Button, Toplevel
 
-from backend import globvars
+from frontend.abstraction import TkTable, replace_toplevel
+from frontend.reference_points import RefPointsTL
 
-from .abstraction import TkTable, replace_toplevel
-from .reference_points import RefPointsTL
-from backend.parameter import CCParam
+from backend import globvars
+from backend.parameter import Parameter
 
 
 pkw = dict(fill="both", expand=True)
@@ -16,14 +16,15 @@ class PropertiesPanel(Frame):
         super().__init__(master, **kw)
         root = globvars.logical_root
 
-        self.data = CCParam() if ccparam is None else ccparam  # type: CCParam
+        self.ccparam = Parameter() if ccparam is None else ccparam  # type: Parameter
         self.reference_entry = None
         self.calc_button = None
 
-        hfields = ("Felvéve", "Anyagminta", "Paraméter", "Mértékegység", "Felelős", "Megjegyzés")
+        mfields = ("Módszer szám", "Módszer", "Paraméter", "Mértékegység", "Felelős")
+        hfields = ("Felvéve", "Anyagminta", "Felelős", "Megjegyzés")
         sfields = ("Átlag", "Szórás", "Mérési bizonytalanság")
 
-        var = self.data.asvars()
+        var = self.ccparam.asvars()
 
         self.header = HeaderPart(self, fieldnames=hfields, tkvars=var[:2] + var[5:])
         self.stats = StatsPart(self, fieldnames=sfields, tkvars=var[2:5])
@@ -63,7 +64,7 @@ class PropertiesPanel(Frame):
         self.stats.unlock()
 
     def pull_data(self):
-        return self.data
+        return self.ccparam
 
 
 class HeaderPart(Frame):
