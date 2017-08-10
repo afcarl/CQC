@@ -5,6 +5,7 @@ from tkinter import StringVar
 
 class Parameter(abc.ABC):
 
+    idfields = ("ID", "pID", "mID")
     methodfields = ("akkn", "methodname", "methodowner", "paramname", "dimension")
     ccfields = ("startdate", "refmaterial", "ccowner", "comment")
     statfields = ("refmean", "refstd", "uncertainty")

@@ -48,14 +48,12 @@ class CCManagerRoot(Frame):
         self.active_panel.pack(fill="both", expand=True)
 
     def savecc_cmd(self):
-        if not globvars.saved:
-            globvars.saved = True
-            if self.chartholder.ccobject is None:
-                points = None  # TODO: work more on the points part!
-                ID, ccparam = self.propspanel.pull_data()
-                self.chartholder.set_ccobject(ControlChart(ccparam, ID, points))
-            self.chartholder.ccobject.save()
         self.propspanel.lock()
+        if globvars.saved:
+            return
+        globvars.saved = True
+        ccobj = self.chartholder.ccobject
+        self.dbifc.update_cc(ccobj)
 
     def newcc_cmd(self):
         if not globvars.saved:

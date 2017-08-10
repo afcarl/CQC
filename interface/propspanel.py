@@ -17,7 +17,7 @@ class PropertiesPanel(Frame):
         super().__init__(master, **kw)
         root = globvars.logical_root
 
-        self.ccparam = Parameter() if ccparam is None else ccparam  # type: Parameter
+        self.param = Parameter() if ccparam is None else ccparam  # type: Parameter
         self.reference_entry = None
         self.calc_button = None
 
@@ -28,9 +28,9 @@ class PropertiesPanel(Frame):
                               ccowner="Diagramot felvette", comment="Megjegyzés")
         sfields = OrderedDict(refmean="Átlag", refstd="Szórás",
                               uncertainty="Mérési bizonytalanság")
-        headervar = self.ccparam.asvars("method") + self.ccparam.asvars("cc")
+        headervar = self.param.asvars("method") + self.param.asvars("cc")
         self.header = HeaderPart(self, fieldnames=hfields, tkvars=headervar)
-        self.stats = StatsPart(self, fieldnames=sfields, tkvars=self.ccparam.asvars("stat"))
+        self.stats = StatsPart(self, fieldnames=sfields, tkvars=self.param.asvars("stat"))
         self.header.pack(**pkw)
         self.stats.pack(**pkw)
         self.lock()
@@ -65,9 +65,6 @@ class PropertiesPanel(Frame):
     def unlock(self):
         self.header.unlock()
         self.stats.unlock()
-
-    def pull_data(self):
-        return self.ccparam
 
 
 class HeaderPart(Frame):

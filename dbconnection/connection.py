@@ -119,14 +119,8 @@ class DBConnection:
             self.x(delete_data, [ccID])
             self.x(delete_cc, [ccID])
 
-    def update_cc(self, cc_object):
-        update = "UPDATE Kontrol_diagram SET "
-        update += "paramname = ?, dimension = ?, refmean = ?, refstd = ?, uncertainty = ? "
-        update += "WHERE id = ?;"
-        params = cc_object.tabledata()
-        params.append(params.pop(0))  # rotate list, so id is the last element
-        with self.conn:
-            self.x(update, params)
+    def update_cc(self, ccobj):
+        pass
 
     def add_measurements(self, cc_ID, dates, points):
         insert = "INSERT INTO Kontroll_meres VALUES (?,?,?)"

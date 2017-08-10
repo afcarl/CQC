@@ -8,8 +8,10 @@ from util import cacheroot
 
 class ControlChart(object):
 
-    def __init__(self, param: Parameter, points=None, ID=None):
+    def __init__(self, param, points=None, ID=None, pID=None, mID=None):
         self.ID = ID
+        self.pID = pID
+        self.mID = mID
         self.pointsdata = None if points is None else np.array(points)
         self.points = np.array([]) if points is None else self.pointsdata[:, 2].astype(float)
         self.param = param
