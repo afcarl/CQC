@@ -7,6 +7,7 @@ from dbconnection import DBConnection
 pkw = dict(fill="both", expand=True)
 
 
+# noinspection PyUnusedLocal
 class SelectionWizard(Toplevel):
 
     def __init__(self, master, **kw):
@@ -20,7 +21,7 @@ class SelectionWizard(Toplevel):
         self.frame = None
         self.reset()
 
-    def stage_params(self):
+    def stage_params(self, event=None):
         if self.selection["method"] is None:
             self.selection["method"] = self.frame.data
         self.query_params()
@@ -39,7 +40,7 @@ class SelectionWizard(Toplevel):
         self.frame = StageFrame(self)
         self.frame.pack(**pkw)
 
-    def stage_ccs(self):
+    def stage_ccs(self, event=None):
         if self.selection["param"] is None:
             self.selection["param"] = self.frame.data
         self.query_ccs()
@@ -59,7 +60,7 @@ class SelectionWizard(Toplevel):
         self.frame = StageFrame(self)
         self.frame.pack(**pkw)
 
-    def stage_final(self):
+    def stage_final(self, event=None):
         if self.selection["cc"] is None:
             self.selection["cc"] = self.frame.data
         self.destroy()
@@ -67,14 +68,14 @@ class SelectionWizard(Toplevel):
     def query_methods(self):
         t0, t1 = "Modszer", "Allomany"
         select = " ".join(
-            (f"SELECT {t0}.id, {t0}.akkn, {t0}.name, {t1}.name",
+            (f"SELECT {t0}.id, {t0}.akkn, {t0}.methodname, {t1}.name",
              f"FROM {t0} INNER JOIN {t1} ON {t0}.allomany_id == {t1}.tasz")
         )
         self.dbifc.x(select)
         self.data["method"] = self.dbifc.c.fetchall()
 
     def query_params(self):
-        select = "SELECT id, name, dimension FROM Parameter WHERE modszer_id == ?"
+        select = "SELECT id, paramname, dimension FROM Parameter WHERE modszer_id == ?"
         self.dbifc.x(select, (self.selection["method"],))
         self.data["param"] = self.dbifc.c.fetchall()
 
@@ -145,15 +146,16 @@ class StageFrame(Frame):
 
         Label(self, text=title).pack(**pkw)
 
-        self._build_treeview(data, colnames, widths)
+        self._build_treeview(data, colnames, widths, stepcb)
         self._build_buttonframe(stepcb)
 
-    def _build_treeview(self, data, colnames, widths):
+    def _build_treeview(self, data, colnames, widths, stepcb):
         self.tw = Treeview(self, columns=[str(i) for i in range(len(colnames)-1)])
         self._configure_treeview(data, colnames, widths)
         self._add_scrollbar_to_treeview()
 
         self.tw.bind("<<TreeviewSelect>>", self.setdata)
+        self.tw.bind("<Double-Button-1>", stepcb)
         self.tw.pack(**pkw)
 
     def _configure_treeview(self, data, colnames, widths):

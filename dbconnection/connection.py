@@ -77,40 +77,34 @@ class DBConnection:
         return c.fetchone()[0]
 
     def get_ccparam(self, ccID):
-        t0, t1 = "Kontroll_diagram", "Allomany"
-        ccol = ["startdate", "refmaterial", "comment", "refmean", "refstd", "uncertainty"]
-        c0 = ", ".join(t0 + "." + c for c in ccol)
-        c1 = "Allomany.name"
-        select = " ".join((
-            f"SELECT {c1}, {c0} FROM {t0} INNER JOIN {t1}",
-            f"ON {t0}.allomany_id == {t1}.tasz",
-            f"WHERE {t0}.id == ?"
-        ))
+        select = "SELECT * FROM Kontroll_diagram WHERE id == ?;"
         self.x(select, [ccID])
-        return dict(zip(["ccowner"] + ccol, self.c.fetchone()))
+        fields = ("cc_id", "startdate", "refmaterial", "refmean", "refstd",
+                  "uncertainty", "comment", "parameter_id", "allomany_id")
+        return dict(zip(fields, self.c.fetchone()))
 
-    def get_methodparam(self, ccID):
-        t1, t2, t3 = "Parameter", "Modszer", "Allomany"
-        c1 = ", ".join(t1 + "." + c for c in ("name", "dimension"))
-        c2 = ", ".join(t2 + "." + c for c in ("akkn", "name"))
-        c3 = ", ".join(t3 + "." + c for c in ("name",))
-        select = " ".join((
-            f"SELECT {c1}, {c2}, {c3} FROM {t1}",
-            f"INNER JOIN {t2} ON {t1}.modszer_id == {t2}.id",
-            f"INNER JOIN {t3} ON {t2}.allomany_id == {t3}.tasz",
-            f"WHERE {t1}.id ==",
-            f"(SELECT parameter_id FROM Kontroll_diagram WHERE id == ?);"
+    def get_paramparam(self, pID):
+        select = "SELECT * FROM Parameter WHERE id == ?;"
+        self.x(select, [pID])
+        fields = ("parameter_id", "paramname", "dimension", "modszer_id")
+        return dict(zip(fields, self.c.fetchone()))
+
+    def get_methodparam(self, mID):
+        fields = ("modszer_id", "methodname", "mnum", "akkn", "allomany_id")
+        select = "SELECT * FROM Modszer WHERE id == ?;"
+        self.x(select, [mID])
+        data = self.c.fetchone()
+        return dict(zip(fields, data))
+
+    def new_cc(self, ccobj):
+        par = ccobj.parameter
+        fields = par.ccfields + par.statfields
+        insert = " ".join((
+            f"INSERT INTO Kontroll_diagram ({', '.join(fields)}) VALUES",
+            f"({', '.join(['?'*len(fields)])});"
         ))
-        self.x(select, [ccID])
-        data = dict(zip(["paramname", "dimension", "akkn", "methodname", "methodowner"],
-                        self.c.fetchone()))
-        return data
-
-    def new_cc(self, cc_object):
-        insert = f"INSERT INTO Kontroll_diagram VALUES ({','.join('?'*8)})"
-        params = cc_object.tabledata()
         with self.conn:
-            self.x(insert, params)
+            self.x(insert, (par[f] for f in fields))
 
     def delete_cc(self, ccID):
         delete_data = "DELETE * FROM Kontroll_meres WHERE cc_id == ?;"
@@ -120,7 +114,18 @@ class DBConnection:
             self.x(delete_cc, [ccID])
 
     def update_cc(self, ccobj):
-        pass
+        par = ccobj.param
+        fields = ("startdate", "refmaterial", "refmean", "refstd", "uncertainty",
+                  "comment", "parameter_id", "allomany_id")
+        update = " ".join((
+            "UPDATE Kontroll_diagram SET ",
+            ", ".join(f"{f} = ?" for f in fields),
+            "WHERE id = ?"
+        ))
+        vals = [par[f].get() for f in fields + ("ccID",)]
+        vals[2:5] = list(map(float, vals[2:5]))
+        with self.conn:
+            self.x(update, vals)
 
     def add_measurements(self, cc_ID, dates, points):
         insert = "INSERT INTO Kontroll_meres VALUES (?,?,?)"

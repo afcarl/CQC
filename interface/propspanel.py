@@ -3,12 +3,22 @@ from tkinter import Label, Frame, Button, Toplevel
 
 from controlchart import Parameter
 
-from interface.abstraction import TkTable, replace_toplevel
+from interface.tablewidget import TkTable
+from util.routine import replace_toplevel
 from interface.reference_points import RefPointsTL
 
 from util import globvars
 
 pkw = dict(fill="both", expand=True)
+pcfg = dict(bd=4, relief="raised")
+
+hfields = OrderedDict(akkn="Módszer száma", methodname="Módszer",
+                      methodowner="Módszer felelős", paramname="Paraméter",
+                      dimension="Mértékegség", startdate="Felvéve",
+                      refmaterial="Anyagminta",
+                      ccowner="Diagramot felvette", comment="Megjegyzés")
+sfields = OrderedDict(refmean="Átlag", refstd="Szórás",
+                      uncertainty="Mérési bizonytalanság")
 
 
 class PropertiesPanel(Frame):
@@ -21,27 +31,11 @@ class PropertiesPanel(Frame):
         self.reference_entry = None
         self.calc_button = None
 
-        hfields = OrderedDict(akkn="Módszer száma", methodname="Módszer",
-                              methodowner="Módszer felelős", paramname="Paraméter",
-                              dimension="Mértékegség", startdate="Felvéve",
-                              refmaterial="Anyagminta",
-                              ccowner="Diagramot felvette", comment="Megjegyzés")
-        sfields = OrderedDict(refmean="Átlag", refstd="Szórás",
-                              uncertainty="Mérési bizonytalanság")
         headervar = self.param.asvars("method") + self.param.asvars("cc")
-        self.header = HeaderPart(self, fieldnames=hfields, tkvars=headervar)
-        self.stats = StatsPart(self, fieldnames=sfields, tkvars=self.param.asvars("stat"))
-        self.header.pack(**pkw)
-        self.stats.pack(**pkw)
-        self.lock()
 
-        bframe = Frame(self)
-        bs = [Button(bframe, text="Kész", command=root.savecc_cmd),
-              Button(bframe, text="Törlés", command=root.deletecc_cmd),
-              Button(bframe, text="Diagram", command=lambda: root.activate_panel("control chart"))]
-        for b in bs:
-            b.pack(side="left", **pkw)
-        bframe.pack(**pkw)
+        self.header = HeaderPart(self, fieldnames=hfields, tkvars=headervar, **pcfg)
+        self.stats = StatsPart(self, fieldnames=sfields, tkvars=self.param.asvars("stat"), **pcfg)
+        self.lock()
 
     @classmethod
     def astoplevel(cls, master, okcallback, ccparam=None, **kw):
@@ -74,15 +68,12 @@ class HeaderPart(Frame):
         labelconf = dict(justify="left", anchor="w", bd=1, relief="sunken", width=20)
         entryconf = dict(width=40)
 
-        hframe = Frame(self, bd=4, relief="raised")
-        Label(hframe, text="Kontroll diagram adatok").pack()
-        self.table = TkTable(hframe, fieldnames.values(), tkvars, labelconf, entryconf)
+        Label(self, text="Kontroll diagram adatok").pack()
+        self.table = TkTable(self, fieldnames.values(), tkvars, labelconf, entryconf)
         self.table.pack(**pkw)
-        self.table.grid_rowconfigure(0, weight=1)
-        self.table.grid_columnconfigure(0, weight=1)
-        Button(hframe, text="Adatok szerkesztése", command=self.table.unlock
+        Button(self, text="Adatok szerkesztése", command=self.unlock
                ).pack(**pkw)
-        hframe.pack(**pkw)
+        self.pack(**pkw)
 
     def lock(self):
         self.table.lock()
@@ -98,26 +89,21 @@ class StatsPart(Frame):
         super().__init__(master, **kw)
         lbconf = dict(justify="left", anchor="w", bd=1, relief="sunken", width=20)
         entconf = dict(width=40)
-        statframe = Frame(self, bd=4, relief="raised")
-        Label(statframe, text="Referencia statisztikák"
+        Label(self, text="Referencia statisztikák"
               ).pack(**pkw)
         cbconf = dict(text="Átlag és szórás számítása", command=self._launch_refentry,
                       state="disabled")
 
-        self.calc_button = Button(statframe, cnf=cbconf)
+        self.calc_button = Button(self, cnf=cbconf)
         self.calc_button.pack(**pkw)
 
-        self.table = TkTable(statframe, fieldnames.values(), tkvars, lbconf, entconf)
+        self.table = TkTable(self, fieldnames.values(), tkvars, lbconf, entconf)
         self.table.pack(**pkw)
-        self.table.grid_rowconfigure(0, weight=1)
-        self.table.grid_columnconfigure(0, weight=1)
 
-        Button(statframe, text="Statisztikák szerkesztése", command=self.unlock
+        Button(self, text="Statisztikák szerkesztése", command=self.unlock
                ).pack(**pkw)
 
-        statframe.pack(**pkw)
-        statframe.grid_rowconfigure(0, weight=1)
-        statframe.grid_columnconfigure(0, weight=1)
+        self.pack(**pkw)
 
     def _launch_refentry(self):
         self.reference_entry = RefPointsTL(self.master, 5)

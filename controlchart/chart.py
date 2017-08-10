@@ -8,20 +8,16 @@ from util import cacheroot
 
 class ControlChart(object):
 
-    def __init__(self, param, points=None, ID=None, pID=None, mID=None):
-        self.ID = ID
-        self.pID = pID
-        self.mID = mID
+    def __init__(self, param, points=None):
         self.pointsdata = None if points is None else np.array(points)
         self.points = np.array([]) if points is None else self.pointsdata[:, 2].astype(float)
         self.param = param
 
     @classmethod
-    def from_database(cls, ccID, dbifc):
-        param = Parameter.from_values(dbifc.get_methodparam(ccID))
-        param.incorporate_values(dbifc.get_ccparam(ccID))
+    def from_database(cls, dbifc, ccID):
+        param = Parameter.from_database(ccID, dbifc)
         points = dbifc.get_measurements(ccID)
-        return cls(param, points, ccID)
+        return cls(param, points)
 
     @staticmethod
     def load(path=None):
@@ -44,10 +40,10 @@ class ControlChart(object):
     def backup(self, path=None):
         import pickle
         import gzip
-        if self.ID is None:
-            print("Not backing new ControlChart!")
+        if self.param["ccID"] is None:
+            print("Not backing up new ControlChart!")
             return
-        flnm = f"KD-{self.ID}.pkl.gz"
+        flnm = f"KD-{self.param['ccID']}.pkl.gz"
         if path is None:
             path = cacheroot
         with gzip.open(path + flnm, "wb") as handle:

@@ -1,4 +1,4 @@
-from tkinter import Tk, Menu, Frame, messagebox as tkmb
+from tkinter import Tk, Menu, Frame, Button, messagebox as tkmb
 
 from dbconnection import DBConnection
 from controlchart import ControlChart
@@ -8,6 +8,8 @@ from interface.propspanel import PropertiesPanel
 from interface.selection_wizard import SelectionWizard
 
 from util import globvars
+
+pkw = dict(fill="both", expand=True)
 
 
 class CCManagerRoot(Frame):
@@ -31,25 +33,42 @@ class CCManagerRoot(Frame):
         self.master.config(menu=self.menubar)
 
         self.mainframe = Frame(self)
-        self.mainframe.pack(fill="both", expand=True)
+        self.mainframe.pack(**pkw)
 
         self.chartholder = ChartHolder(self.mainframe)
         self.chartholder.update_image()
 
         self.propspanel = PropertiesPanel(self.mainframe)
         self.activate_panel("control chart")
-        self.pack(fill="both", expand=True)
+        bframe = Frame(self)
+        bs = [Button(bframe, text="Kész", command=self.savecc_cmd),
+              Button(bframe, text="Törlés", command=self.deletecc_cmd)]
+        for b in bs:
+            b.pack(side="left", **pkw)
+        self.switchbutton = Button(
+            bframe, text="Nézetváltás", command=self.switch_panel
+        )
+        self.switchbutton.pack(side="left", **pkw)
+        bframe.pack(**pkw)
+
+        self.pack(**pkw)
+
+    def switch_panel(self):
+        if isinstance(self.active_panel, PropertiesPanel):
+            self.activate_panel("control chart")
+        else:
+            self.activate_panel("properties")
 
     def activate_panel(self, what):
         if self.active_panel is not None:
             self.active_panel.pack_forget()
         self.active_panel = {"control chart": self.chartholder,
                              "properties": self.propspanel}[what]
-        self.active_panel.pack(fill="both", expand=True)
+        self.active_panel.pack(**pkw)
 
     def savecc_cmd(self):
         self.propspanel.lock()
-        if globvars.saved:
+        if globvars.saved or self.chartholder.ccobject is None:
             return
         globvars.saved = True
         ccobj = self.chartholder.ccobject
@@ -73,9 +92,9 @@ class CCManagerRoot(Frame):
         self.wait_window(wiz)
         if wiz.selection["cc"] is None:
             return
-        ccID = wiz.selection["cc"]
-
-        ccobject = ControlChart.from_database(ccID, self.dbifc)
+        ccobject = ControlChart.from_database(
+            dbifc=self.dbifc, ccID=wiz.selection["cc"],
+        )
         self.chartholder.set_ccobject(ccobject)
         self.propspanel.destroy()
         self.propspanel = PropertiesPanel(self.mainframe, ccobject.param)
