@@ -6,7 +6,7 @@ from tkinter import (
     messagebox as tkmb
 )
 
-from backend.util import floatify
+from util import floatify
 
 
 class RefPointsTL(Toplevel):

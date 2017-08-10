@@ -7,29 +7,29 @@ class TkTable(Frame):
         super().__init__(master)
         self.master = master
         self.ls = []
-        self.es = []
+        self.entries = []
         lcnf = {} if lcnf is None else lcnf
         ecnf = {} if ecnf is None else ecnf
         w = max(len(f) for f in fields)
         for i, (fld, var) in enumerate(zip(fields, tkvars)):
             self.ls.append(Label(self, text=fld, cnf=lcnf, width=w))
             self.ls[-1].grid(row=i, column=0, sticky="news")
-            self.es.append(Entry(self, textvariable=var, cnf=ecnf))
-            self.es[-1].grid(row=i, column=1, sticky="news")
-        for e in self.es[:-1]:
+            self.entries.append(Entry(self, textvariable=var, cnf=ecnf))
+            self.entries[-1].grid(row=i, column=1, sticky="news")
+        for e in self.entries[:-1]:
             e.bind("<Return>", self._focusjump)
 
     def _focusjump(self, event):
-        i = self.es.index(event.widget)
-        self.es[i+1].focus_set()
+        i = self.entries.index(event.widget)
+        self.entries[i + 1].focus_set()
 
     def lock(self):
-        for e in self.es:
-            e.configure(state="disabled")
+        for entry in self.entries:
+            entry.configure(state="disabled")
 
     def unlock(self):
-        for e in self.es:
-            e.configure(state="normal")
+        for entry in self.entries:
+            entry.configure(state="normal")
 
 
 def replace_toplevel(master, toplevel, resizeable=False):

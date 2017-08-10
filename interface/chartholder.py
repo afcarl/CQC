@@ -1,6 +1,6 @@
-from tkinter import Frame, Label, IntVar, Scale, PhotoImage
+from tkinter import Frame, Label, PhotoImage
 
-from backend.util import emptyccimg
+from util.const import emptyccimg
 
 
 class ChartHolder(Frame):
@@ -11,16 +11,6 @@ class ChartHolder(Frame):
         self.ccimg = None
         self.canvas = Label(self)
         self.canvas.pack()
-        self.scalevar = IntVar(value=30)
-        self.scale = Scale(
-            self, from_=1, to=100, variable=self.scalevar,
-            orient="horizontal", showvalue=False,
-            sliderlength=100, digits=0, command=self.movescale
-        )
-        self.scale.pack(fill="both", expand=1)
-
-    def movescale(self, n):
-        print("movescale called with n =", n)
 
     def set_ccobject(self, ccobj):
         self.ccobject = ccobj

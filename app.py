@@ -2,7 +2,7 @@ from tkinter import Tk
 
 import numpy as np
 
-from frontend.ccm_root import CCManagerRoot
+from interface.ui_root import CCManagerRoot
 
 
 def ccmanager_main():
@@ -12,8 +12,8 @@ def ccmanager_main():
 
 
 def show_mpl_plot():
-    from CQC.backend.cchart import ControlChart
-    from CQC.backend.plot_cc import LeveyJenningsChart
+    from CQC.controlchart.chart import ControlChart
+    from plotting.leveyjennings import LeveyJenningsChart
 
     N = 100
     dates = np.linspace(0, 100, N)

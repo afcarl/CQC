@@ -1,14 +1,13 @@
 from tkinter import Tk, Menu, Frame, messagebox as tkmb
 
-from backend import globvars
-from backend.cchart import ControlChart
-from backend.parameter import AllParameter
+from dbconnection import DBConnection
+from controlchart import ControlChart
 
-from frontend.chartholder import ChartHolder
-from frontend.selection_wizard import SelectionWizard
-from frontend.propspanel import PropertiesPanel
+from interface.chartholder import ChartHolder
+from interface.propspanel import PropertiesPanel
+from interface.selection_wizard import SelectionWizard
 
-from dbconnection.interface import DBConnection
+from util import globvars
 
 
 class CCManagerRoot(Frame):
@@ -26,9 +25,9 @@ class CCManagerRoot(Frame):
         self.active_toplevel = None
 
         self.menubar = Menu(self)
-        self._build_ccmenu()
+        self._build_filemenu()
+        self._build_editmenu()
         self._build_viewmenu()
-        self._build_pointsmenu()
         self.master.config(menu=self.menubar)
 
         self.mainframe = Frame(self)
@@ -77,13 +76,11 @@ class CCManagerRoot(Frame):
         if wiz.selection["cc"] is None:
             return
         ccID = wiz.selection["cc"]
-        ccdata, points = self.dbifc.ccobj_args(ccID)
-        ccparam = Parameter.from_values(ccdata)
-        self.chartholder.set_ccobject(
-            ControlChart(ID=ccID, ccparam=ccparam, points=points)
-        )
+
+        ccobject = ControlChart.from_database(ccID, self.dbifc)
+        self.chartholder.set_ccobject(ccobject)
         self.propspanel.destroy()
-        self.propspanel = PropertiesPanel(self.mainframe, ccparam)
+        self.propspanel = PropertiesPanel(self.mainframe, ccobject.param)
         self.activate_panel("properties")
 
     def deletecc_cmd(self):
@@ -98,7 +95,7 @@ class CCManagerRoot(Frame):
             path = ccobject.backup()
             print("Backed up ControlChart object to", path)
 
-    def _build_ccmenu(self):
+    def _build_filemenu(self):
         fm = Menu(self.menubar, tearoff=0)
         fm.add_command(label="Új...", command=self.newcc_cmd)
         fm.add_command(label="Megnyitás...", command=self.opencc_cmd)
@@ -107,8 +104,10 @@ class CCManagerRoot(Frame):
         fm.add_separator()
         fm.add_command(label="Tulajdonságok...")
         fm.add_separator()
+        fm.add_command(label="Biztonsági mentések...")
+        fm.add_separator()
         fm.add_command(label="Kilépés")
-        self.menubar.add_cascade(label="Kontroll diagram", menu=fm)
+        self.menubar.add_cascade(label="Fájl", menu=fm)
 
     def _build_viewmenu(self):
         fm = Menu(self.menubar, tearoff=0)
@@ -118,10 +117,12 @@ class CCManagerRoot(Frame):
                        command=lambda: self.activate_panel("properties"))
         self.menubar.add_cascade(label="Nézet", menu=fm)
 
-    def _build_pointsmenu(self):
+    def _build_editmenu(self):
         pm = Menu(self.menubar, tearoff=0)
         pm.add_command(label="Új pont felvétele")
         pm.add_command(label="Adatok szerkesztése")
         pm.add_separator()
         pm.add_command(label="Formatábla beforgarása")
-        self.menubar.add_cascade(label="Pontok", menu=pm)
+        pm.add_separator()
+        pm.add_command(label="Visszavonás")
+        self.menubar.add_cascade(label="Szerkesztés", menu=pm)

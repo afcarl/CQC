@@ -1,7 +1,7 @@
 from tkinter import Toplevel, Frame, Label, Button, messagebox as tkmb
 from tkinter.ttk import Treeview, Scrollbar
 
-from dbconnection.interface import DBConnection
+from dbconnection import DBConnection
 
 
 pkw = dict(fill="both", expand=True)
@@ -11,33 +11,14 @@ class SelectionWizard(Toplevel):
 
     def __init__(self, master, **kw):
         super().__init__(master, **kw)
+        self.title("Kontroll diagram megnyitása...")
         self.dbifc = DBConnection()
-        self.data = dict(
-            method=[],
-            param=[],
-            cc=[]
-        )
-        self.selection = dict(
-            method=None,
-            param=None,
-            cc=None
-        )
-        self.arg = dict(
-            method=("Mérési módszer kiválasztása",
-                    ["ID", "Akkred", "Megnevezés", "Felelős"],
-                    [70, 70, 600, 200], self.stage_params),
-            param=("Kontrollált paraméter kiválasztása",
-                   ["ID", "Paraméter", "Mértékegység"],
-                   [70, 600, 200], self.stage_ccs),
-            cc=("Kontroll diagram kiválasztása",
-                ["ID", "Anyagminta", "Dátum", "Felvevő", "Megjegyzés"],
-                [70, 100, 100, 300, 500], self.stage_final)
-        )
-        self.result = None
-        self.query_methods()
-        self.frame = StageFrame(self, "method")
-        self.frame.pack(**pkw)
-        self.methods = []
+        self.data = {}
+        self.selection = {}
+        self.arg = {}
+        self.stage = None
+        self.frame = None
+        self.reset()
 
     def stage_params(self):
         if self.selection["method"] is None:
@@ -53,8 +34,9 @@ class SelectionWizard(Toplevel):
             tkmb.showinfo("Információ", msg)
             self.destroy()
             return
+        self.stage = "param"
         self.frame.destroy()
-        self.frame = StageFrame(self, "param")
+        self.frame = StageFrame(self)
         self.frame.pack(**pkw)
 
     def stage_ccs(self):
@@ -69,10 +51,12 @@ class SelectionWizard(Toplevel):
         elif len(data) == 0:
             msg = "A választott paraméterhez nem tartozik kontroll diagram!"
             tkmb.showinfo("Információ", msg)
+            self.selection["cc"] = None
             self.destroy()
             return
+        self.stage = "cc"
         self.frame.destroy()
-        self.frame = StageFrame(self, "cc")
+        self.frame = StageFrame(self)
         self.frame.pack(**pkw)
 
     def stage_final(self):
@@ -105,16 +89,56 @@ class SelectionWizard(Toplevel):
         self.dbifc.x(select, (self.selection["param"],))
         self.data["cc"] = self.dbifc.c.fetchall()
 
+    def logical_reset(self):
+        self.data = dict(
+            method=[],
+            param=[],
+            cc=[]
+        )
+        self.selection = dict(
+            method=None,
+            param=None,
+            cc=None
+        )
+        self.arg = dict(
+            method=("Mérési módszer kiválasztása",
+                    ["ID", "Akkred", "Megnevezés", "Felelős"],
+                    [70, 70, 600, 200], self.stage_params),
+            param=("Kontrollált paraméter kiválasztása",
+                   ["ID", "Paraméter", "Mértékegység"],
+                   [70, 600, 200], self.stage_ccs),
+            cc=("Kontroll diagram kiválasztása",
+                ["ID", "Anyagminta", "Dátum", "Felvevő", "Megjegyzés"],
+                [70, 100, 100, 300, 500], self.stage_final)
+        )
+        self.stage = "method"
+        self.query_methods()
+
+    def ui_reset(self):
+        if self.frame is not None:
+            self.frame.destroy()
+        self.frame = StageFrame(self)
+        self.frame.pack(**pkw)
+
     def reset(self):
-        pass
+        self.logical_reset()
+        self.ui_reset()
+
+    def teardown(self):
+        self.logical_reset()
+        self.destroy()
+
+    def new(self):
+        print("Called <new> @ stage:", self.stage)
 
 
 class StageFrame(Frame):
 
-    def __init__(self, master: SelectionWizard, frametype):
+    def __init__(self, master: SelectionWizard):
         super().__init__(master)
-        title, colnames, widths, stepcb = master.arg[frametype]
-        data = master.data[frametype]
+        stage = master.stage
+        title, colnames, widths, stepcb = master.arg[stage]
+        data = master.data[stage]
 
         self.data = None
         self.tw = None
@@ -147,7 +171,9 @@ class StageFrame(Frame):
 
     def _build_buttonframe(self, stepcb):
         f = Frame(self)
-        Button(f, text="Mégsem", command=self.master.reset).pack(side="left", **pkw)
+        Button(f, text="Vissza", command=self.master.reset).pack(side="left", **pkw)
+        Button(f, text="Mégsem", command=self.master.teardown).pack(side="left", **pkw)
+        Button(f, text="Új...", command=self.master.new).pack(side="left", **pkw)
         self.nextb = Button(f, text="Tovább", command=stepcb, state="disabled")
         self.nextb.pack(side="left", **pkw)
         f.pack(**pkw)
@@ -156,7 +182,6 @@ class StageFrame(Frame):
         sel = event.widget.selection(items="#0")
         self.data = event.widget.item(sel)["text"]
         self.nextb.configure(state="active")
-        print(self.data)
 
 
 if __name__ == '__main__':

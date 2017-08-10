@@ -1,18 +1,25 @@
 import numpy as np
 
-from .plot_cc import LeveyJenningsChart
-from .util import cacheroot
+from .parameter import Parameter
+
+from plotting import LeveyJenningsChart
+from util import cacheroot
 
 
 class ControlChart(object):
 
-    def __init__(self, ccparam, methodparam, ID=None, points=None):
+    def __init__(self, param: Parameter, points=None, ID=None):
         self.ID = ID
         self.pointsdata = None if points is None else np.array(points)
         self.points = np.array([]) if points is None else self.pointsdata[:, 2].astype(float)
-        self.__dict__.update(dict(zip(ccparam.fields, ccparam.asvals())))
-        self.__dict__.update(dict(zip(methodparam.fields, ccparam.asvals())))
-        pass
+        self.param = param
+
+    @classmethod
+    def from_database(cls, ccID, dbifc):
+        param = Parameter.from_values(dbifc.get_methodparam(ccID))
+        param.incorporate_values(dbifc.get_ccparam(ccID))
+        points = dbifc.get_measurements(ccID)
+        return cls(param, points, ccID)
 
     @staticmethod
     def load(path=None):
@@ -27,7 +34,7 @@ class ControlChart(object):
     def plot(self, show=False):
         if not self.plottable:
             raise RuntimeError("Not plottable!")
-        plotter = LeveyJenningsChart(self)
+        plotter = LeveyJenningsChart(self.param, self.points)
         dumppath = cacheroot + "cc_pic.png"
         plotter.plot(show=show, dumppath=dumppath)
         return dumppath

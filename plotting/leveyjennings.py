@@ -1,7 +1,8 @@
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy import stats
 
-from matplotlib import pyplot as plt
+from util import floatify
 
 
 class LeveyJenningsChart(object):
@@ -9,24 +10,28 @@ class LeveyJenningsChart(object):
     ax = plt.gca()
     Xs = None
 
-    def __init__(self, cc):
-        self.cc = cc
+    def __init__(self, param, points):
+        self.refmean = floatify(param["refmean"])
+        self.refstd = floatify(param["refstd"])
+        self.uncertainty = floatify(param["uncertainty"])
+        self.param = param
+        self.points = points
 
     def _plot_hlines(self):
 
         def draw_dual(coef, col):
-            plt.axhline(y=self.cc.refmean + coef * self.cc.refstd, color=col)
-            plt.axhline(y=self.cc.refmean - coef * self.cc.refstd, color=col)
+            plt.axhline(y=self.refmean + coef * self.refstd, color=col)
+            plt.axhline(y=self.refmean - coef * self.refstd, color=col)
             pass
 
-        m, s, u = self.cc.refmean, self.cc.refstd, self.cc.uncertainty
+        m, s, u = self.refmean, self.refstd, self.uncertainty
         plt.axhline(y=m, color="purple", linestyle="--")
         for num, color in zip((2*s, 3*s, u), ("blue", "red", "green")):
             draw_dual(num, color)
 
     def _setup_axes(self):
         ax = plt.gca()
-        ax.set_ylabel(self.cc.paramname)
+        ax.set_ylabel(self.param["paramname"].get())
 
         ax.set_axisbelow(True)
         ax.xaxis.grid(color="grey", linestyle="dashed")
@@ -35,7 +40,7 @@ class LeveyJenningsChart(object):
     def _add_zscore_axis(self, ax):
         zax = ax.twinx()
         zax.set_ylabel("Z-érték")
-        lims = np.divide(np.subtract(ax.get_ylim(), self.cc.refmean), self.cc.refstd)
+        lims = np.divide(np.subtract(ax.get_ylim(), self.refmean), self.refstd)
         zax.set_ylim(lims)
         zax.set_yticklabels(abs(i) for i, item in enumerate(ax.get_yticklabels(), start=-4))
 
@@ -43,20 +48,20 @@ class LeveyJenningsChart(object):
 
         def annotate(arg):
             date, point = arg
-            z = (point - self.cc.refmean) / self.cc.refstd
+            z = (point - self.refmean) / self.refstd
             z = round(z, 2)
             va = "top" if z < 0 else "bottom"
             z = abs(z)
-            tx = "{} {}\nZ° = {}".format(round(point, 4), self.cc.dimension, z)
+            tx = "{} {}\nZ° = {}".format(round(point, 4), self.param["dimension"].get(), z)
             # offsx = 10. if point > self.cc.refmean else -10.
             # offsy = 20. if date > np.mean(self.cc.dates) else -10.
             self.ax.annotate(tx, xy=(date, point), xycoords="data",
                              horizontalalignment="right", verticalalignment=va)
 
-        Ys = np.array(self.cc.points)
+        Ys = np.array(self.points)
         Xs = np.arange(1, len(Ys)+1)
-        ywlim = self.cc.refmean - 1.9 * self.cc.refstd, self.cc.refmean + 1.9 * self.cc.refstd
-        rdlim = self.cc.refmean - 2.9 * self.cc.refstd, self.cc.refmean + 2.9 * self.cc.refstd
+        ywlim = self.refmean - 1.95 * self.refstd, self.refmean + 1.95 * self.refstd
+        rdlim = self.refmean - 2.95 * self.refstd, self.refmean + 2.95 * self.refstd
         yargs = np.concatenate((np.argwhere((rdlim[0] < Ys) & (Ys < ywlim[0])),
                                 np.argwhere((rdlim[1] > Ys) & (Ys > ywlim[1])))).ravel()
         rargs = np.concatenate((np.argwhere(Ys < rdlim[0]), np.argwhere(Ys > rdlim[1]))).ravel()
@@ -75,15 +80,15 @@ class LeveyJenningsChart(object):
         self.Xs = Xs
 
     def _add_linear_trendline(self):
-        line = np.poly1d(np.polyfit(self.Xs, self.cc.points, 1))
+        line = np.poly1d(np.polyfit(self.Xs, self.points, 1))
         pred = line(self.Xs)
-        r = stats.pearsonr(self.cc.points, pred)[0] ** 2
+        r = stats.pearsonr(self.points, pred)[0] ** 2
         print("r^2 =", r)
         plt.plot(self.Xs, pred, "r--", linewidth=2)
 
     def _set_titles(self):
-        pst = "Kontroll diagram {} paraméterhez".format(self.cc.paramname)
-        pt = "Anyagminta: {}".format(self.cc.refmaterial)
+        pst = "Kontroll diagram {} paraméterhez".format(self.param["paramname"].get())
+        pt = "Anyagminta: {}".format(self.param["refmaterial"].get())
         plt.title("\n".join((pst, pt)), fontsize=12)
 
     def _create_plot(self, trend=False, annot=True):

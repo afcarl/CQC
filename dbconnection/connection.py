@@ -1,7 +1,6 @@
 import sqlite3 as sql
 
-from backend.util import DBPATH, METAPATH
-from backend.parameter import MethodParameter, CCParameter, StatParameter
+from util.const import DBPATH, METAPATH
 
 
 def read_meta(path):
@@ -77,60 +76,35 @@ class DBConnection:
         c.execute("SELECT name FROM Allomany WHERE tasz == ?;", (tasz,))
         return c.fetchone()[0]
 
-    def get_ccparams(self, ccID):
-        t0, t1 = "Modszer", "Allomany"
+    def get_ccparam(self, ccID):
+        t0, t1 = "Kontroll_diagram", "Allomany"
         ccol = ["startdate", "refmaterial", "comment", "refmean", "refstd", "uncertainty"]
         c0 = ", ".join(t0 + "." + c for c in ccol)
         c1 = "Allomany.name"
-        select = ", ".join((
+        select = " ".join((
             f"SELECT {c1}, {c0} FROM {t0} INNER JOIN {t1}",
             f"ON {t0}.allomany_id == {t1}.tasz",
             f"WHERE {t0}.id == ?"
         ))
         self.x(select, [ccID])
-        data = self.c.fetchall()
-        header, stats = data[:4], data[4:]
-        hdata = dict(zip(["ccowner"] + ccol[:3], header))
-        sdata = dict(zip(ccol[3:], stats))
-        return CCParameter.from_values(hdata), StatParameter.from_values(sdata)
+        return dict(zip(["ccowner"] + ccol, self.c.fetchone()))
 
     def get_methodparam(self, ccID):
-        t1, t2 = "Parameter", "Modszer"
+        t1, t2, t3 = "Parameter", "Modszer", "Allomany"
         c1 = ", ".join(t1 + "." + c for c in ("name", "dimension"))
-        c2 = ", ".join(t2 + "." + c for c in ("akkno", "name", "owner"))
+        c2 = ", ".join(t2 + "." + c for c in ("akkn", "name"))
+        c3 = ", ".join(t3 + "." + c for c in ("name",))
         select = " ".join((
-            f"SELECT {c2}, {c1} FROM {t1}",
+            f"SELECT {c1}, {c2}, {c3} FROM {t1}",
             f"INNER JOIN {t2} ON {t1}.modszer_id == {t2}.id",
-            f"WHERE {t1}.id == ",
-            f"(SELECT parameter_id FROM Kontroll_diagram WERE id == ?);"
+            f"INNER JOIN {t3} ON {t2}.allomany_id == {t3}.tasz",
+            f"WHERE {t1}.id ==",
+            f"(SELECT parameter_id FROM Kontroll_diagram WHERE id == ?);"
         ))
         self.x(select, [ccID])
-        data = dict(zip(["akkno", "methodname", "methodowner", "paramname", "dimension"],
-                        self.c.fetchall()))
-        return MethodParameter.from_values(data)
-
-    def ccobj_args(self, ccID):
-        cccol = ["startdate", "refmaterial", "refmean", "refstd", "uncertainty", "comment"]
-        pcol = ["name", "dimension"]
-        acol = ["name"]
-        mcol = ["akkn", "name"]
-        t0, t1, t2, t3 = "Kontroll_diagram", "Parameter", "Allomany", "Modszer"
-        c0 = ", ".join(t0 + "." + c for c in cccol)
-        c1 = ", ".join(t1 + "." + c for c in pcol)
-        c2 = ", ".join(t2 + "." + c for c in acol)
-        c3 = ", ".join(t3 + "." + c for c in mcol)
-        getdata = " ".join((
-            f"SELECT {c0}, {c1}, {c2}, {c3}",
-            f"FROM {t0} INNER JOIN {t1} ON {t0}.parameter_id == {t1}.id",
-            f"INNER JOIN {t2} ON {t0}.allomany_id == {t2}.tasz",
-            f"INNER JOIN {t3} on {t1}.modszer_id == {t3}.id"
-            f" WHERE {t0}.id == ?;"
-        ))
-        self.x(getdata, (ccID,))
-        ccdata = dict(zip(cccol + ["paramname", "dimension", "owner", "methodnum", "method"],
-                          self.c.fetchone()))
-        points = self.get_measurements(ccID)
-        return ccdata, points if len(points) else None
+        data = dict(zip(["paramname", "dimension", "akkn", "methodname", "methodowner"],
+                        self.c.fetchone()))
+        return data
 
     def new_cc(self, cc_object):
         insert = f"INSERT INTO Kontroll_diagram VALUES ({','.join('?'*8)})"

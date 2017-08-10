@@ -1,11 +1,12 @@
+from collections import OrderedDict
 from tkinter import Label, Frame, Button, Toplevel
 
-from frontend.abstraction import TkTable, replace_toplevel
-from frontend.reference_points import RefPointsTL
+from controlchart import Parameter
 
-from backend import globvars
-from backend.parameter import Parameter
+from interface.abstraction import TkTable, replace_toplevel
+from interface.reference_points import RefPointsTL
 
+from util import globvars
 
 pkw = dict(fill="both", expand=True)
 
@@ -20,14 +21,16 @@ class PropertiesPanel(Frame):
         self.reference_entry = None
         self.calc_button = None
 
-        mfields = ("Módszer szám", "Módszer", "Paraméter", "Mértékegység", "Felelős")
-        hfields = ("Felvéve", "Anyagminta", "Felelős", "Megjegyzés")
-        sfields = ("Átlag", "Szórás", "Mérési bizonytalanság")
-
-        var = self.ccparam.asvars()
-
-        self.header = HeaderPart(self, fieldnames=hfields, tkvars=var[:2] + var[5:])
-        self.stats = StatsPart(self, fieldnames=sfields, tkvars=var[2:5])
+        hfields = OrderedDict(akkn="Módszer száma", methodname="Módszer",
+                              methodowner="Módszer felelős", paramname="Paraméter",
+                              dimension="Mértékegség", startdate="Felvéve",
+                              refmaterial="Anyagminta",
+                              ccowner="Diagramot felvette", comment="Megjegyzés")
+        sfields = OrderedDict(refmean="Átlag", refstd="Szórás",
+                              uncertainty="Mérési bizonytalanság")
+        headervar = self.ccparam.asvars("method") + self.ccparam.asvars("cc")
+        self.header = HeaderPart(self, fieldnames=hfields, tkvars=headervar)
+        self.stats = StatsPart(self, fieldnames=sfields, tkvars=self.ccparam.asvars("stat"))
         self.header.pack(**pkw)
         self.stats.pack(**pkw)
         self.lock()
@@ -76,7 +79,7 @@ class HeaderPart(Frame):
 
         hframe = Frame(self, bd=4, relief="raised")
         Label(hframe, text="Kontroll diagram adatok").pack()
-        self.table = TkTable(hframe, fieldnames, tkvars, labelconf, entryconf)
+        self.table = TkTable(hframe, fieldnames.values(), tkvars, labelconf, entryconf)
         self.table.pack(**pkw)
         self.table.grid_rowconfigure(0, weight=1)
         self.table.grid_columnconfigure(0, weight=1)
@@ -107,7 +110,7 @@ class StatsPart(Frame):
         self.calc_button = Button(statframe, cnf=cbconf)
         self.calc_button.pack(**pkw)
 
-        self.table = TkTable(statframe, fieldnames, tkvars, lbconf, entconf)
+        self.table = TkTable(statframe, fieldnames.values(), tkvars, lbconf, entconf)
         self.table.pack(**pkw)
         self.table.grid_rowconfigure(0, weight=1)
         self.table.grid_columnconfigure(0, weight=1)
