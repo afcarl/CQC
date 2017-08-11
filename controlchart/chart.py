@@ -10,13 +10,15 @@ class ControlChart(object):
 
     def __init__(self, param, points=None):
         self.pointsdata = np.array(points) if points else None
-        self.points = self.pointsdata[:, 2].astype(float) if points else np.array([])
+        self.points = self.pointsdata[:, -1].astype(float) if points else np.array([])
         self.param = param
 
     @classmethod
     def from_database(cls, dbifc, ccID):
         param = Parameter.populate(ccID, dbifc)
-        points = dbifc.get_measurements(ccID)
+        points = dbifc.query(
+            "SELECT * FROM Control_measurement WHERE cc_id == ?;", [ccID]
+        )
         return cls(param, points)
 
     @staticmethod
@@ -52,4 +54,4 @@ class ControlChart(object):
 
     @property
     def plottable(self):
-        return len(self.points) > 5
+        return len(self.points) > 0

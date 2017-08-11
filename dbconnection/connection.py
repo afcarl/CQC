@@ -39,8 +39,8 @@ class DBConnection:
                [name] * 3)
         return self.c.fetchone()[0]
 
-    def get_measurements(self, ccID):
-        self.x("SELECT * FROM Control_measurement WHERE cc_id == ?;" [ccID])
+    def query(self, select, args):
+        self.x(select, args)
         return list(self.c.fetchall())
 
     def new_cc(self, ccobj):
@@ -62,15 +62,17 @@ class DBConnection:
 
     def update_cc(self, ccobj):
         par = ccobj.param
-        fields = ("startdate", "refmaterial", "refmean", "refstd", "uncertainty",
-                  "comment", "parameter_id", "allomany_id")
+        fields = (
+            "parameter_id", "staff_id", "startdate", "refmaterial",
+            "comment", "refmean", "refstd", "uncertainty"
+        )
         update = " ".join((
-            "UPDATE Kontroll_diagram SET ",
-            ", ".join(f"{f} = ?" for f in fields),
+            "UPDATE Control_chart SET ",
+            ", ".join(f"{field} = ?" for field in fields),
             "WHERE id = ?"
         ))
-        vals = [par[f].get() for f in fields + ("ccID",)]
-        vals[2:5] = list(map(float, vals[2:5]))
+        vals = [par.ccdata[f] for f in fields + ("id",)]
+        vals[-4:-1] = map(float, vals[-4:-1])
         with self.conn:
             self.x(update, vals)
 

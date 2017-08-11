@@ -2,8 +2,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy import stats
 
-from util import floatify
-
 
 class LeveyJenningsChart(object):
 
@@ -11,9 +9,9 @@ class LeveyJenningsChart(object):
     Xs = None
 
     def __init__(self, param, points):
-        self.refmean = floatify(param.ccdata["refmean"])
-        self.refstd = floatify(param.ccdata["refstd"])
-        self.uncertainty = floatify(param.ccdata["uncertainty"])
+        self.refmean = param.ccdata["refmean"]
+        self.refstd = param.ccdata["refstd"]
+        self.uncertainty = param.ccdata["uncertainty"]
         self.param = param
         self.points = points
 

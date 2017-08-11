@@ -1,10 +1,9 @@
-import abc
 from tkinter import StringVar
 
 from util import floatify
 
 
-class _ParamData(abc.ABC):
+class _ParamData:
     type = ""
     table = ""
     fields = ()
