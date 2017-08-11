@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from tkinter import Label, Frame, Button, Toplevel
 
 from controlchart import Parameter
@@ -12,29 +11,21 @@ from util import globvars
 pkw = dict(fill="both", expand=True)
 pcfg = dict(bd=4, relief="raised")
 
-hfields = OrderedDict(akkn="Módszer száma", methodname="Módszer",
-                      methodowner="Módszer felelős", paramname="Paraméter",
-                      dimension="Mértékegség", startdate="Felvéve",
-                      refmaterial="Anyagminta",
-                      ccowner="Diagramot felvette", comment="Megjegyzés")
-sfields = OrderedDict(refmean="Átlag", refstd="Szórás",
-                      uncertainty="Mérési bizonytalanság")
-
 
 class PropertiesPanel(Frame):
 
-    def __init__(self, master, ccparam=None, **kw):
+    def __init__(self, master, param=None, **kw):
         super().__init__(master, **kw)
-        root = globvars.logical_root
 
-        self.param = Parameter() if ccparam is None else ccparam  # type: Parameter
+        if param is None:
+            param = Parameter()
+        self.param = param  # type: Parameter
+
         self.reference_entry = None
         self.calc_button = None
 
-        headervar = self.param.asvars("method") + self.param.asvars("cc")
-
-        self.header = HeaderPart(self, fieldnames=hfields, tkvars=headervar, **pcfg)
-        self.stats = StatsPart(self, fieldnames=sfields, tkvars=self.param.asvars("stat"), **pcfg)
+        self.header = HeaderPart(self, param=param, **pcfg)
+        self.stats = StatsPart(self, param=param, **pcfg)
         self.lock()
 
     @classmethod
@@ -63,13 +54,22 @@ class PropertiesPanel(Frame):
 
 class HeaderPart(Frame):
 
-    def __init__(self, master, fieldnames, tkvars, **kw):
+    def __init__(self, master, param, **kw):
         super().__init__(master, **kw)
+        md, pd, ccd = param.mdata, param.pdata, param.ccdata
+        tkvars = (
+            md.akkn, md.name, md.staff_id, pd.name, pd.dimension,
+            ccd.startdate, ccd.refmaterial, ccd.staff_id, ccd.comment
+        )
+        fieldnames = (
+            "Módszer száma", "Módszer", "Módszer felelős", "Paraméter",
+            "Mértékegség", "Felvéve", "Anyagminta", "Diagramot felvette", "Megjegyzés"
+        )
         labelconf = dict(justify="left", anchor="w", bd=1, relief="sunken", width=20)
         entryconf = dict(width=40)
 
         Label(self, text="Kontroll diagram adatok").pack()
-        self.table = TkTable(self, fieldnames.values(), tkvars, labelconf, entryconf)
+        self.table = TkTable(self, fieldnames, tkvars, labelconf, entryconf)
         self.table.pack(**pkw)
         Button(self, text="Adatok szerkesztése", command=self.unlock
                ).pack(**pkw)
@@ -85,19 +85,22 @@ class HeaderPart(Frame):
 
 class StatsPart(Frame):
 
-    def __init__(self, master, fieldnames, tkvars, **kw):
+    def __init__(self, master, param, **kw):
         super().__init__(master, **kw)
+        ccd = param.ccdata
+        tkvars = (ccd.refmean, ccd.refstd, ccd.uncertainty)
+        fieldnames = ("Átlag", "Szórás", "Mérési bizonytalanság")
+
         lbconf = dict(justify="left", anchor="w", bd=1, relief="sunken", width=20)
         entconf = dict(width=40)
-        Label(self, text="Referencia statisztikák"
-              ).pack(**pkw)
-        cbconf = dict(text="Átlag és szórás számítása", command=self._launch_refentry,
-                      state="disabled")
 
-        self.calc_button = Button(self, cnf=cbconf)
+        Label(self, text="Referencia statisztikák").pack(**pkw)
+
+        self.calc_button = Button(self, text="Átlag és szórás számítása",
+                                  command=self._launch_refentry, state="disabled")
         self.calc_button.pack(**pkw)
 
-        self.table = TkTable(self, fieldnames.values(), tkvars, lbconf, entconf)
+        self.table = TkTable(self, fieldnames, tkvars, lbconf, entconf)
         self.table.pack(**pkw)
 
         Button(self, text="Statisztikák szerkesztése", command=self.unlock

@@ -9,13 +9,13 @@ from util import cacheroot
 class ControlChart(object):
 
     def __init__(self, param, points=None):
-        self.pointsdata = None if points is None else np.array(points)
-        self.points = np.array([]) if points is None else self.pointsdata[:, 2].astype(float)
+        self.pointsdata = np.array(points) if points else None
+        self.points = self.pointsdata[:, 2].astype(float) if points else np.array([])
         self.param = param
 
     @classmethod
     def from_database(cls, dbifc, ccID):
-        param = Parameter.from_database(ccID, dbifc)
+        param = Parameter.populate(ccID, dbifc)
         points = dbifc.get_measurements(ccID)
         return cls(param, points)
 

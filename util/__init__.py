@@ -1,5 +1,5 @@
 from .const import (
-    cacheroot, emptyccimg, defaults,
+    cacheroot, emptyccimg, defaults, pkw,
     METAPATH, DBPATH
 )
 from .routine import floatify

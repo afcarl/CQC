@@ -1,22 +1,15 @@
 import abc
-
 from tkinter import StringVar
 
+from util import floatify
 
-class Parameter(abc.ABC):
 
-    ccfields = ("id", "startdate", "refmaterial", "refmean", "refstd",
-                "uncertainty", "comment", "parameter_id", "allomany_id")
-    paramfields = ("id", "paramname", "dimension", "modszer_id")
-    methodfields = ("id", "methodname", "mnum", "akkn", "allomany_id")
-
-    statfields = ("refmean", "refstd", "uncertainty")
-    idfields = ("id", "modszer_id", "parameter_id", "allomany_id")
-
-    fields = ccfields + paramfields + methodfields
+class _ParamData(abc.ABC):
+    type = ""
+    table = ""
+    fields = ()
 
     def __init__(self, **kw):
-
         invalid = [k for k in kw if k not in self.fields]
         if invalid:
             raise RuntimeError("Wrong keyword arguments: " + str(invalid))
@@ -25,32 +18,21 @@ class Parameter(abc.ABC):
         self.dictionary.update(kw)
         if "self" in kw:
             self.dictionary.pop("self")
-        if not all(isinstance(v, StringVar) for k, v in self.dictionary.items()
-                   if k[0] != "_"):
+
+        if not all(isinstance(v, StringVar) for v in self.dictionary.values()):
             raise ValueError("CCParams must be initialized with StringVar instances!")
-        assert all(field in self.dictionary for field in self.fields)
+
+        self.__dict__.update(self.dictionary)
 
     @classmethod
     def from_values(cls, data):
         return cls(**{k: StringVar(value=str(v)) for k, v in data.items()})
 
     @classmethod
-    def from_ccobject(cls, ccobj):
-        return cls.from_values({k: ccobj.__dict__[k] for k in cls.fields})
-
-    @classmethod
-    def from_database(cls, ccID, dbifc):
-        selectbase = "SELECT {} FROM {} WHERE id == ?;"
-        par = cls()
-        dbifc.x(selectbase.format(", ".join(cls.ccfields), "Kontroll_diagram"), [ccID])
-        par.incorporate_values(dict(zip(cls.ccfields, dbifc.c.fetchone())))
-        dbifc.x(selectbase.format(", ".join(cls.paramfields), "Parameter"), [par["parameter_id"]])
-        par.incorporate_values(dict(zip(cls.paramfields, dbifc.c.fetchone())))
-        dbifc.x(selectbase.format(", ".join(cls.methodfields), "Modszer"), [par["method_id"]])
-        par.incorporate_values(dict(zip(cls.paramfields, dbifc.c.fetchone())))
-        par["method_id"] = par["id"]
-        par["id"] = ccID
-        return par
+    def from_database(cls, ID, dbifc):
+        dbifc.x(f"SELECT * FROM {cls.table} WHERE id == ?;", [ID])
+        obj = cls.from_values(dict(zip(cls.fields, dbifc.c.fetchone())))
+        return obj
 
     def incorporate_values(self, data=None, **kw):
         invalid = [k for k in kw if k not in self.fields]
@@ -63,6 +45,12 @@ class Parameter(abc.ABC):
             for k, v in data.items():
                 self.dictionary[k].set(str(v))
 
+    def asvars(self):
+        return [self.dictionary[var] for var in self.fields]
+
+    def asvals(self):
+        return [str(var.get()) for var in self.asvars()]
+
     def __getitem__(self, item):
         if item not in self.dictionary:
             raise KeyError("No such param: " + str(item))
@@ -71,13 +59,50 @@ class Parameter(abc.ABC):
     def __setitem__(self, key, value):
         if key not in self.dictionary:
             raise KeyError("No such param: " + str(key))
-        self.dictionary[key].set(value)
+        self.dictionary[key].set(str(value))
 
-    def asvars(self, field=None):
-        fields = {"method": self.methodfields, "cc": self.ccfields, "id": self.idfields,
-                  "stat": self.statfields, None: self.fields, "all": self.fields
-                  }[field]
-        return [self.dictionary[var] for var in fields]
 
-    def asvals(self, field=None):
-        return [str(var.get()) for var in self.asvars(field)]
+class MethodData(_ParamData):
+    type = "methoddata"
+    table = "Method"
+    fields = ("id", "staff_id", "name", "mnum", "akkn")
+
+
+class ParameterData(_ParamData):
+    type = "parameterdata"
+    table = "Parameter"
+    fields = ("id", "method_id", "name", "dimension")
+
+
+class CCData(_ParamData):
+    type = "ccdata"
+    table = "Control_chart"
+    fields = ("id", "parameter_id", "staff_id", "startdate", "refmaterial",
+              "comment", "refmean", "refstd", "uncertainty")
+    statfields = ("refmean", "refstd", "uncertainty")
+
+    def __getitem__(self, field):
+        value = super().__getitem__(field)
+        if field in self.statfields:
+            value = floatify(value)
+        return value
+
+    def asvals(self):
+        vals = super().asvals()
+        vals[-3:] = map(float, vals[-3:])
+        return vals
+
+
+class Parameter:
+
+    def __init__(self, mdata=None, pdata=None, ccdata=None):
+        self.mdata = MethodData() if mdata is None else mdata
+        self.pdata = ParameterData() if pdata is None else pdata
+        self.ccdata = CCData() if ccdata is None else ccdata
+
+    @classmethod
+    def populate(cls, ccID, dbifc):
+        ccd = CCData.from_database(ccID, dbifc)
+        pd = ParameterData.from_database(ccd["parameter_id"], dbifc)
+        md = MethodData.from_database(pd["method_id"], dbifc)
+        return cls(md, pd, ccd)

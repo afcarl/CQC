@@ -11,9 +11,9 @@ class LeveyJenningsChart(object):
     Xs = None
 
     def __init__(self, param, points):
-        self.refmean = floatify(param["refmean"])
-        self.refstd = floatify(param["refstd"])
-        self.uncertainty = floatify(param["uncertainty"])
+        self.refmean = floatify(param.ccdata["refmean"])
+        self.refstd = floatify(param.ccdata["refstd"])
+        self.uncertainty = floatify(param.ccdata["uncertainty"])
         self.param = param
         self.points = points
 
@@ -31,7 +31,7 @@ class LeveyJenningsChart(object):
 
     def _setup_axes(self):
         ax = plt.gca()
-        ax.set_ylabel(self.param["paramname"].get())
+        ax.set_ylabel(self.param.pdata["name"])
 
         ax.set_axisbelow(True)
         ax.xaxis.grid(color="grey", linestyle="dashed")
@@ -52,7 +52,7 @@ class LeveyJenningsChart(object):
             z = round(z, 2)
             va = "top" if z < 0 else "bottom"
             z = abs(z)
-            tx = "{} {}\nZ° = {}".format(round(point, 4), self.param["dimension"].get(), z)
+            tx = "{} {}\nZ° = {}".format(round(point, 4), self.param.pdata["dimension"], z)
             # offsx = 10. if point > self.cc.refmean else -10.
             # offsy = 20. if date > np.mean(self.cc.dates) else -10.
             self.ax.annotate(tx, xy=(date, point), xycoords="data",
@@ -87,8 +87,8 @@ class LeveyJenningsChart(object):
         plt.plot(self.Xs, pred, "r--", linewidth=2)
 
     def _set_titles(self):
-        pst = "Kontroll diagram {} paraméterhez".format(self.param["paramname"].get())
-        pt = "Anyagminta: {}".format(self.param["refmaterial"].get())
+        pst = "Kontroll diagram {} paraméterhez".format(self.param.pdata["name"])
+        pt = "Anyagminta: {}".format(self.param.ccdata["refmaterial"])
         plt.title("\n".join((pst, pt)), fontsize=12)
 
     def _create_plot(self, trend=False, annot=True):
