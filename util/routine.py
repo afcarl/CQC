@@ -1,3 +1,4 @@
+import datetime
 from tkinter import StringVar
 
 
@@ -17,3 +18,11 @@ def replace_toplevel(master, toplevel, resizeable=False):
     dy = y + h // 2
     toplevel.geometry(f"{w}x{h}+{dx}+{dy}")
     toplevel.resizable(*[resizeable]*2)
+
+
+def validate_date(datestr):
+    try:
+        datetime.datetime.strptime(datestr, "%Y.%m.%d")
+    except ValueError:
+        return False
+    return True

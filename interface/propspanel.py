@@ -1,11 +1,9 @@
-from tkinter import Label, Frame, Button, Toplevel
+from tkinter import Label, Frame, Button
+from statistics import mean, stdev
 
 from controlchart import Parameter
-
 from interface.tablewidget import TkTable
-from util.routine import replace_toplevel
-from interface.reference_points import RefPointsTL
-
+from interface.measurements import MeasurementsTL
 from util import globvars
 
 pkw = dict(fill="both", expand=True)
@@ -21,27 +19,11 @@ class PropertiesPanel(Frame):
             param = Parameter()
         self.param = param  # type: Parameter
 
-        self.reference_entry = None
         self.calc_button = None
 
         self.header = HeaderPart(self, param=param, **pcfg)
         self.stats = StatsPart(self, param=param, **pcfg)
         self.lock()
-
-    @classmethod
-    def astoplevel(cls, master, okcallback, ccparam=None, **kw):
-        cctl = Toplevel(master)
-        cctl.title("Kontroldiagram " +
-                   ("létrehozás" if ccparam is None else "tulajdonságok"))
-        ccpanel = cls(cctl, ccparam, **kw)
-        ccpanel.pack(**pkw)
-
-        Button(cctl, text="Kész", command=okcallback).pack(**pkw)
-        Button(cctl, text="Mégsem", command=cctl.destroy).pack(**pkw)
-
-        replace_toplevel(master=ccpanel, toplevel=cctl)
-
-        return cctl
 
     def lock(self):
         self.header.lock()
@@ -103,14 +85,19 @@ class StatsPart(Frame):
         self.table = TkTable(self, fieldnames, tkvars, lbconf, entconf)
         self.table.pack(**pkw)
 
-        Button(self, text="Statisztikák szerkesztése", command=self.unlock
-               ).pack(**pkw)
+        Button(self, text="Statisztikák szerkesztése", command=self.unlock).pack(**pkw)
 
+        self.param = param
         self.pack(**pkw)
 
     def _launch_refentry(self):
-        self.reference_entry = RefPointsTL(self.master, 5)
-        self.reference_entry.reposition()
+        rent = MeasurementsTL(self.master, empties=5)
+        self.wait_window(rent)
+        if len(rent.points) < 3:
+            return
+        refmean, refstd = mean(rent.points), stdev(rent.points)
+        self.param.ccdata["refmean"] = refmean
+        self.param.ccdata["refstd"] = refstd
 
     def lock(self):
         self.table.lock()

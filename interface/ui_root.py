@@ -3,9 +3,10 @@ from tkinter import Tk, Menu, Frame, Button, messagebox as tkmb
 from dbconnection import DBConnection
 from controlchart import ControlChart
 
-from interface.chartholder import ChartHolder
-from interface.propspanel import PropertiesPanel
-from interface.selection_wizard import SelectionWizard
+from .chartholder import ChartHolder
+from .propspanel import PropertiesPanel
+from .selection_wizard import SelectionWizard
+from .measurements import MeasurementsTL
 
 from util import globvars
 
@@ -112,6 +113,10 @@ class CCManagerRoot(Frame):
             path = ccobject.backup()
             print("Backed up ControlChart object to", path)
 
+    def newpoints_cmd(self):
+        mtl = MeasurementsTL(self, empties=1)
+        self.wait_window(mtl)
+
     def _build_filemenu(self):
         fm = Menu(self.menubar, tearoff=0)
         fm.add_command(label="Új...", command=self.newcc_cmd)
@@ -136,7 +141,7 @@ class CCManagerRoot(Frame):
 
     def _build_editmenu(self):
         pm = Menu(self.menubar, tearoff=0)
-        pm.add_command(label="Új pont felvétele")
+        pm.add_command(label="Új pont felvétele", command=self.newpoints_cmd)
         pm.add_command(label="Adatok szerkesztése")
         pm.add_separator()
         pm.add_command(label="Formatábla beforgarása")
