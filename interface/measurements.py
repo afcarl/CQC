@@ -4,58 +4,43 @@ from tkinter import (
     messagebox as tkmb
 )
 
-from controlchart import ControlChart
-
+from controlchart import Measurements
 from util.const import pkw
 from util.routine import floatify, validate_date
 
 
-class MeasurementsTL(Toplevel):
+class _MeasurementTLBase(Toplevel):
 
-    def __init__(self, master, ccobj: ControlChart, mode, rowN=10, **kw):
-        title = kw.pop("title", "Pontok szerkesztése, bevitele")
+    def __init__(self, master, measureobj: Measurements, rown, **kw):
+        title = kw.pop("title")
         super().__init__(master, **kw)
         self.title(title)
-        self.ccobj = ccobj
+        self.measure = measureobj  # type: Measurements
         self.results = []
         self.rowframe = None
-        self.rowN = rowN
-        self.page = 0
-        self.pages = [(ccobj.measure["value"][start:start + rowN],
-                       ccobj.measure["date"][start:start+rowN],
-                       ccobj.measure["comment"][start:start+rowN])
-                      for start in range(0, len(ccobj.values), rowN)]
-        self._build_interface(mode=mode)
-        self._turnpage()
+        self.rown = rown
         self.protocol("WM_DELETE_WINDOW", self._exitcallback)
 
-    def _build_interface(self, mode):
+    def _build_interface(self):
         mf = Frame(self)
         mf.pack(side="left", **pkw)
 
-        self.rowframe = RowFrame(mf, self.rowN)
+        self.rowframe = _RowFrame(mf, self.rown)
         self.rowframe.grid(row=1, column=0, columnspan=2, sticky="news")
-
-        if mode == "turnable":
-            self.prevbut = Button(mf, text="Előző", command=self.prevpage, state="disabled")
-            self.prevbut.grid(row=2, column=0, sticky="news")
-            self.nextbut = Button(mf, text="Következő", command=self.nextpage)
-            self.nextbut.grid(row=2, column=1, sticky="news")
-        elif mode == "expandable":
-            Button(mf, text="Új sor...", command=self.rowframe.add_empties(1))
-        if self.N < self.rowN and mode == "turnable":
-            self.nextbut.configure(state="disabled")
 
         Button(mf, text="OK", command=self.pull_data
                ).grid(row=3, column=0, columnspan=2, sticky="news")
+        return mf
 
-    def nextpage(self):
-        self.page += 1
-        self._turnpage()
+    def _exitcallback(self):
+        msg = "Adatok módosultak. Valóban kilép mentés nélkül?"
+        if not self.rowframe.saved:
+            if not tkmb.askyesno("Figyelem!", msg):
+                return
+        self.destroy()
 
-    def prevpage(self):
-        self.page -= 1
-        self._turnpage()
+    def update_rowframe(self):
+        raise NotImplementedError
 
     def pull_data(self):
         for vvar, dvar, cvar in self.rowframe.variables:
@@ -76,24 +61,61 @@ class MeasurementsTL(Toplevel):
             self.results.append([floatify(vval), datestr, cvar.get()])
         self.destroy()
 
-    def _turnpage(self):
+    @property
+    def N(self):
+        return len(self.measure["value"])
+
+
+class MeasurementTurnable(_MeasurementTLBase):
+
+    def __init__(self, master, measure: Measurements, rown=10, **kw):
+        super().__init__(master, measure, rown, **kw)
+        self.nextbut = None
+        self.prevbut = None
+        self.page = 0
+        self.pages = [(measure["value"][start:start + rown],
+                       measure["date"][start:start + rown],
+                       measure["comment"][start:start + rown])
+                      for start in range(0, self.N, rown)]
+        self._build_interface()
+        self.update_rowframe()
+
+    def _build_interface(self):
+        mf = super()._build_interface()
+        self.prevbut = Button(mf, text="Előző", command=lambda: self.pageturn(-1), state="disabled")
+        self.prevbut.grid(row=2, column=0, sticky="news")
+        self.nextbut = Button(mf, text="Következő", command=lambda: self.pageturn(+1))
+        self.nextbut.grid(row=2, column=1, sticky="news")
+        if self.N < self.rown:
+            self.nextbut.configure(state="disabled")
+
+    def pageturn(self, where):
+        self.page += where
+        self.update_rowframe()
+
+    def update_rowframe(self):
         self.prevbut.configure(state=("disabled" if not self.page else "active"))
         self.nextbut.configure(state=("disabled" if self.page == len(self.pages)-1 else "active"))
         self.rowframe.display(*self.pages[self.page])
 
-    def _exitcallback(self):
-        msg = "Adatok módosultak. Valóban kilép mentés nélkül?"
-        if not self.rowframe.saved:
-            if not tkmb.askyesno("Figyelem!", msg):
-                return
-        self.destroy()
 
-    @property
-    def N(self):
-        return len(self.ccobj.values)
+class MeasurementsNewLine(_MeasurementTLBase):
+
+    def __init__(self, master, measureobj: Measurements, rown, **kw):
+        super().__init__(master, measureobj, rown, **kw)
+        self._build_interface()
+
+    def _build_interface(self):
+        mf = super()._build_interface()
+        self.rowframe.add_empties(self.rown)
+        Button(mf, text="Új sor...", command=lambda: self.rowframe.add_empties(1)
+               ).grid(row=2, column=0, columnspan=2, sticky="news")
+
+    def update_rowframe(self):
+        self.rowframe.display()
 
 
-class RowFrame(Frame):
+class _RowFrame(Frame):
 
     def __init__(self, master, maxrow, **kw):
         super().__init__(master, **kw)

@@ -10,7 +10,6 @@ class _ParamData(abc.ABC):
 
     def __init__(self, **kw):
         self.validate(kw)
-
         self.dictionary = {k: StringVar("") for k in self.fields}
         self.dictionary.update(kw)
         if "self" in kw:
@@ -89,8 +88,9 @@ class Measurements(_ParamData):
     fields = ("id", "cc_id", "staff_id", "reference", "comment", "date", "value")
     table = "Control_measurement"
 
-    def __init__(self, **kw):
+    def __init__(self, globref=False, **kw):
         self.validate(kw)
+        self.globref = globref
         self.dictionary = {k: [] for k in self.fields}
         self.dictionary.update(kw)
 

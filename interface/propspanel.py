@@ -1,9 +1,9 @@
 from tkinter import Label, Frame, Button
 from statistics import mean, stdev
 
-from controlchart import Parameter
+from controlchart import Parameter, Measurements
 from interface.tablewidget import TkTable
-from interface.measurements import MeasurementsTL
+from interface.measurements import MeasurementsNewLine
 from util import globvars
 
 pkw = dict(fill="both", expand=True)
@@ -91,13 +91,13 @@ class StatsPart(Frame):
         self.pack(**pkw)
 
     def _launch_refentry(self):
-        rent = MeasurementsTL(self.master, rowN=10, turnable=False)
+        rent = MeasurementsNewLine(self.master, Measurements(), rown=5, title="Referencia pontok bevitele")
         self.wait_window(rent)
-        if len(rent.points) < 3:
+        if len(rent.results) < 3:
             return
-        refmean, refstd = mean(rent.points), stdev(rent.points)
-        self.param.ccdata["refmean"] = refmean
-        self.param.ccdata["refstd"] = refstd
+        points = [p for p, d, c in rent.results]
+        self.param.ccdata["refmean"] = mean(points)
+        self.param.ccdata["refstd"] = stdev(points)
 
     def lock(self):
         self.table.lock()

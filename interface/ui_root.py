@@ -6,7 +6,7 @@ from controlchart import ControlChart, Parameter, Measurements
 from .chartholder import ChartHolder
 from .propspanel import PropertiesPanel
 from .selection_wizard import SelectionWizard
-from .measurements import MeasurementsTL
+from .measurements import MeasurementsNewLine, MeasurementTurnable
 
 from util import globvars
 
@@ -56,10 +56,9 @@ class CCManagerRoot(Frame):
         self.pack(**pkw)
 
     def switch_panel(self):
-        if isinstance(self.active_panel, PropertiesPanel):
-            self.activate_panel("control chart")
-        else:
-            self.activate_panel("properties")
+        self.activate_panel(
+            "control chart" if isinstance(self.active_panel, PropertiesPanel) else "properties"
+        )
 
     def activate_panel(self, what):
         if self.active_panel is not None:
@@ -115,11 +114,18 @@ class CCManagerRoot(Frame):
             print("Backed up ControlChart object to", path)
 
     def newpoints_cmd(self):
-        mtl = MeasurementsTL(self, self.ccobject, mode="expandable", rowN=3, title="Pontok bevitele")
+        mtl = MeasurementsNewLine(
+            self, self.ccobject.measure, rown=3, title="Pontok bevitele"
+        )
         self.wait_window(mtl)
+        print("NEW POINTS:")
+        print("VALUE\tDATE\tCOMMENT")
+        print("\n".join("\t".join(map(str, line)) for line in mtl.results))
 
     def editpoints_cmd(self):
-        mtl = MeasurementsTL(self, self.ccobject, mode="turnable", rowN=10, title="Pontok szerkesztése")
+        mtl = MeasurementTurnable(
+            self, self.ccobject.measure, rown=10, title="Pontok szerkesztése"
+        )
         self.wait_window(mtl)
 
     def _build_filemenu(self):
