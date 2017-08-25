@@ -13,7 +13,7 @@ class LeveyJenningsChart(object):
         self.refstd = param.ccdata["refstd"]
         self.uncertainty = param.ccdata["uncertainty"]
         self.param = param
-        self.points = points
+        self.points = np.array(points)
 
     def _plot_hlines(self):
 

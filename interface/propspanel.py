@@ -91,7 +91,7 @@ class StatsPart(Frame):
         self.pack(**pkw)
 
     def _launch_refentry(self):
-        rent = MeasurementsTL(self.master, empties=5)
+        rent = MeasurementsTL(self.master, rowN=10, turnable=False)
         self.wait_window(rent)
         if len(rent.points) < 3:
             return
