@@ -1,9 +1,9 @@
 from tkinter import Label, Frame, Button
 from statistics import mean, stdev
 
-from controlchart import Parameter, Measurements
+from controlchart import ControlChart
 from interface.tablewidget import TkTable
-from interface.measurements import MeasurementsNewLine
+from interface.measurements import NewMeasurements
 from util import globvars
 
 pkw = dict(fill="both", expand=True)
@@ -12,17 +12,15 @@ pcfg = dict(bd=4, relief="raised")
 
 class PropertiesPanel(Frame):
 
-    def __init__(self, master, param=None, **kw):
+    def __init__(self, master, ccobj, **kw):
         super().__init__(master, **kw)
 
-        if param is None:
-            param = Parameter()
-        self.param = param  # type: Parameter
+        self.ccobj = ccobj  # type: ControlChart
 
         self.calc_button = None
 
-        self.header = HeaderPart(self, param=param, **pcfg)
-        self.stats = StatsPart(self, param=param, **pcfg)
+        self.header = HeaderPart(self, param=ccobj, **pcfg)
+        self.stats = StatsPart(self, param=ccobj, **pcfg)
         self.lock()
 
     def lock(self):
@@ -36,10 +34,10 @@ class PropertiesPanel(Frame):
 
 class HeaderPart(Frame):
 
-    def __init__(self, master, param, **kw):
+    def __init__(self, master, param: ControlChart, **kw):
         super().__init__(master, **kw)
-        md, pd, ccd = param.mdata, param.pdata, param.ccdata
-        tkvars = (
+        md, pd, ccd = param.mrec, param.prec, param.ccrec
+        recvars = (
             md.akkn, md.name, md.staff_id, pd.name, pd.dimension,
             ccd.startdate, ccd.refmaterial, ccd.staff_id, ccd.comment
         )
@@ -51,7 +49,7 @@ class HeaderPart(Frame):
         entryconf = dict(width=40)
 
         Label(self, text="Kontroll diagram adatok").pack()
-        self.table = TkTable(self, fieldnames, tkvars, labelconf, entryconf)
+        self.table = TkTable(self, fieldnames, recvars, labelconf, entryconf)
         self.table.pack(**pkw)
         Button(self, text="Adatok szerkesztése", command=self.unlock
                ).pack(**pkw)
@@ -67,9 +65,9 @@ class HeaderPart(Frame):
 
 class StatsPart(Frame):
 
-    def __init__(self, master, param, **kw):
+    def __init__(self, master, param: ControlChart, **kw):
         super().__init__(master, **kw)
-        ccd = param.ccdata
+        ccd = param.ccrec
         tkvars = (ccd.refmean, ccd.refstd, ccd.uncertainty)
         fieldnames = ("Átlag", "Szórás", "Mérési bizonytalanság")
 
@@ -91,13 +89,13 @@ class StatsPart(Frame):
         self.pack(**pkw)
 
     def _launch_refentry(self):
-        rent = MeasurementsNewLine(self.master, Measurements(), rown=5, title="Referencia pontok bevitele")
+        rent = NewMeasurements(self.master, self.param.refmeas, rown=5, title="Referencia pontok bevitele")
         self.wait_window(rent)
         if len(rent.results) < 3:
             return
         points = [p for p, d, c in rent.results]
-        self.param.ccdata["refmean"] = mean(points)
-        self.param.ccdata["refstd"] = stdev(points)
+        self.param.ccrec["refmean"] = mean(points)
+        self.param.ccrec["refstd"] = stdev(points)
 
     def lock(self):
         self.table.lock()

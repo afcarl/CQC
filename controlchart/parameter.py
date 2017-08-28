@@ -1,24 +1,23 @@
-import abc
 from tkinter import StringVar
 
 from util import floatify
 
 
-class _ParamData(abc.ABC):
+class _Record:
     table = ""
     fields = ()
 
     def __init__(self, **kw):
         self.validate(kw)
-        self.dictionary = {k: StringVar("") for k in self.fields}
-        self.dictionary.update(kw)
+        self.data = {k: StringVar("") for k in self.fields}
+        self.data.update(kw)
         if "self" in kw:
-            self.dictionary.pop("self")
+            self.data.pop("self")
 
-        if not all(isinstance(v, StringVar) for v in self.dictionary.values()):
-            raise ValueError("CCParams must be initialized with StringVar instances!")
+        if not all(isinstance(v, StringVar) for v in self.data.values()):
+            raise ValueError("_ParamData must be initialized with StringVar instances!")
 
-        self.__dict__.update(self.dictionary)
+        self.__dict__.update(self.data)
 
     @classmethod
     def from_values(cls, data):
@@ -38,7 +37,7 @@ class _ParamData(abc.ABC):
             self.incorporate(**data)
 
     def asvars(self):
-        return [self.dictionary[var] for var in self.fields]
+        return [self.data[var] for var in self.fields]
 
     def asvals(self):
         return [str(var.get()) for var in self.asvars()]
@@ -49,23 +48,23 @@ class _ParamData(abc.ABC):
             raise RuntimeError(f"Invalid keywords: {invalid}")
 
     def __getitem__(self, item):
-        return self.dictionary[item].get()
+        return self.data[item].get()
 
     def __setitem__(self, key, value):
-        self.dictionary[key].set(str(value))
+        self.data[key].set(str(value))
 
 
-class MethodData(_ParamData):
+class MethodRecord(_Record):
     table = "Method"
     fields = ("id", "staff_id", "name", "mnum", "akkn")
 
 
-class ParameterData(_ParamData):
+class ParameterRecord(_Record):
     table = "Parameter"
     fields = ("id", "method_id", "name", "dimension")
 
 
-class CCData(_ParamData):
+class CCRecord(_Record):
     table = "Control_chart"
     fields = ("id", "parameter_id", "staff_id", "startdate", "refmaterial",
               "comment", "refmean", "refstd", "uncertainty")
@@ -83,8 +82,8 @@ class CCData(_ParamData):
         return vals
 
 
-# noinspection PyMissingConstructor
-class Measurements(_ParamData):
+# noinspection PyMissingConstructor,PyMethodOverriding
+class Measurements(_Record):
     fields = ("id", "cc_id", "staff_id", "reference", "comment", "date", "value")
     table = "Control_measurement"
 
@@ -95,8 +94,12 @@ class Measurements(_ParamData):
         self.dictionary.update(kw)
 
     @classmethod
-    def from_database(cls, ccID, dbifc):
-        select = f"SELECT {', '.join(cls.fields)} FROM {cls.table} WHERE cc_ID == ?;"
+    def from_database(cls, ccID, dbifc, reference):
+        select = " ".join((
+            f"SELECT {', '.join(cls.fields)} FROM {cls.table}",
+            f" WHERE cc_ID == ? AND",
+            "reference;" if reference else "NOT reference;"
+        ))
         dbifc.x(select, [ccID])
         data_transposed = map(list, zip(*dbifc.c.fetchall()))
         return cls(**dict(zip(cls.fields, data_transposed)))
@@ -113,18 +116,3 @@ class Measurements(_ParamData):
 
     def __setitem__(self, key, value):
         self.dictionary[key] = value
-
-
-class Parameter:
-
-    def __init__(self, mdata=None, pdata=None, ccdata=None):
-        self.mdata = MethodData() if mdata is None else mdata
-        self.pdata = ParameterData() if pdata is None else pdata
-        self.ccdata = CCData() if ccdata is None else ccdata
-
-    @classmethod
-    def populate(cls, ccID, dbifc):
-        ccd = CCData.from_database(ccID, dbifc)
-        pd = ParameterData.from_database(ccd["parameter_id"], dbifc)
-        md = MethodData.from_database(pd["method_id"], dbifc)
-        return cls(md, pd, ccd)

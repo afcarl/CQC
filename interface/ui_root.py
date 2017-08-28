@@ -1,12 +1,12 @@
 from tkinter import Tk, Menu, Frame, Button, messagebox as tkmb
 
 from dbconnection import DBConnection
-from controlchart import ControlChart, Parameter, Measurements
+from controlchart import ControlChart
 
 from .chartholder import ChartHolder
 from .propspanel import PropertiesPanel
 from .selection_wizard import SelectionWizard
-from .measurements import MeasurementsNewLine, MeasurementTurnable
+from .measurements import NewMeasurements, EditMeasurements
 
 from util import globvars
 
@@ -26,7 +26,7 @@ class CCManagerRoot(Frame):
         self.pklpath = None
         self.active_panel = None
         self.active_toplevel = None
-        self.ccobject = ControlChart(Parameter(), Measurements())
+        self.ccobject = ControlChart()
 
         self.menubar = Menu(self)
         self._build_filemenu()
@@ -40,7 +40,7 @@ class CCManagerRoot(Frame):
         self.chartholder = ChartHolder(self.mainframe)
         self.chartholder.update_image()
 
-        self.propspanel = PropertiesPanel(self.mainframe)
+        self.propspanel = PropertiesPanel(self.mainframe, self.ccobject)
         self.activate_panel("control chart")
         bframe = Frame(self)
         bs = [Button(bframe, text="Kész", command=self.savecc_cmd),
@@ -81,8 +81,9 @@ class CCManagerRoot(Frame):
                    "Szeretnéd menteni?")
             if tkmb.askyesno("Mentetlen adat!", "\n".join(msg)):
                 self.savecc_cmd()
+        self.ccobject = ControlChart()
         self.propspanel.destroy()
-        self.propspanel = PropertiesPanel(self.mainframe)
+        self.propspanel = PropertiesPanel(self.mainframe, self.ccobject)
         self.propspanel.unlock()
         self.activate_panel("properties")
         self.chartholder.update_image(None)
@@ -98,24 +99,24 @@ class CCManagerRoot(Frame):
         )
         self.chartholder.update_image(self.ccobject)
         self.propspanel.destroy()
-        self.propspanel = PropertiesPanel(self.mainframe, self.ccobject.param)
+        self.propspanel = PropertiesPanel(self.mainframe, self.ccobject)
         self.activate_panel("properties")
 
     def deletecc_cmd(self):
         msg = "Valóban törölni szeretnéd a kontroll diagramot?"
         if not tkmb.askyesno("Törlés megerősítése", msg):
             return
-        cc = self.ccobject
-        self.chartholder.update_image(None)
-        self.propspanel = PropertiesPanel(self.mainframe)
-        if cc.ID is not None:
-            self.dbifc.delete_cc(cc.ID)
-            path = cc.backup()
+        if self.ccobject.ID is not None:
+            self.dbifc.delete_cc(self.ccobject.ID)
+            path = self.ccobject.pkldump()
             print("Backed up ControlChart object to", path)
+        self.ccobject = ControlChart()
+        self.chartholder.update_image(None)
+        self.propspanel = PropertiesPanel(self.mainframe, self.ccobject)
 
     def newpoints_cmd(self):
-        mtl = MeasurementsNewLine(
-            self, self.ccobject.measure, rown=3, title="Pontok bevitele"
+        mtl = NewMeasurements(
+            self, self.ccobject.meas, rown=3, title="Pontok bevitele"
         )
         self.wait_window(mtl)
         print("NEW POINTS:")
@@ -123,8 +124,8 @@ class CCManagerRoot(Frame):
         print("\n".join("\t".join(map(str, line)) for line in mtl.results))
 
     def editpoints_cmd(self):
-        mtl = MeasurementTurnable(
-            self, self.ccobject.measure, rown=10, title="Pontok szerkesztése"
+        mtl = EditMeasurements(
+            self, self.ccobject.meas, rown=10, title="Pontok szerkesztése"
         )
         self.wait_window(mtl)
 

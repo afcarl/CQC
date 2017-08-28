@@ -8,12 +8,12 @@ class LeveyJenningsChart(object):
     ax = plt.gca()
     Xs = None
 
-    def __init__(self, param, points):
+    def __init__(self, param):
         self.refmean = param.ccdata["refmean"]
         self.refstd = param.ccdata["refstd"]
         self.uncertainty = param.ccdata["uncertainty"]
+        self.points = param.measure["value"]
         self.param = param
-        self.points = np.array(points)
 
     def _plot_hlines(self):
 
@@ -28,9 +28,9 @@ class LeveyJenningsChart(object):
             draw_dual(num, color)
 
     def _setup_axes(self):
+        pd = self.param.pdata
         ax = plt.gca()
-        ax.set_ylabel(self.param.pdata["name"])
-
+        ax.set_ylabel(f"{pd['name']} ({pd['dimension']})")
         ax.set_axisbelow(True)
         ax.xaxis.grid(color="grey", linestyle="dashed")
         return ax
@@ -85,8 +85,8 @@ class LeveyJenningsChart(object):
         plt.plot(self.Xs, pred, "r--", linewidth=2)
 
     def _set_titles(self):
-        pst = "Kontroll diagram {} paraméterhez".format(self.param.pdata["name"])
-        pt = "Anyagminta: {}".format(self.param.ccdata["refmaterial"])
+        pst = f"Kontroll diagram {self.param.pdata['name']} paraméterhez"
+        pt = f"Anyagminta: {self.param.ccdata['refmaterial']}"
         plt.title("\n".join((pst, pt)), fontsize=12)
 
     def _create_plot(self, trend=False, annot=True):
@@ -101,6 +101,7 @@ class LeveyJenningsChart(object):
         self._add_zscore_axis(ax)
         self.ax.set_xlim([1, 30])
         self.ax.xaxis.set_ticks(np.arange(0, 30, 2))
+        self._set_titles()
         plt.tight_layout()
         plt.subplots_adjust(left=0.07, right=0.95)
 

@@ -27,31 +27,44 @@ class DBConnection:
     c = conn.cursor()
     x = c.execute
     meta = read_meta(METAPATH)
+    _currentuser = None
+
+    def current_user(self, gettasz=False):
+        if self._currentuser is None:
+            import getpass
+            tasz = getpass.getuser()
+            if not tasz.isdigit():
+                tasz = "315855"
+            self.x("SELECT * FROM Staff WHERE tasz == ?;", [tasz])
+            self._currentuser = self.c.fetchone()
+        return self._currentuser[int(not gettasz)]
 
     def get_username(self, tasz, alias=0):
         col = ["name", "alias1", "alias2"]
         c = self.conn.cursor()
-        c.execute(f"SELECT {col[alias]} FROM Allomany WHERE tasz == ?;", [tasz])
+        c.execute(f"SELECT {col[alias]} FROM Staff WHERE tasz == ?;", [tasz])
         return c.fetchone()[0]
 
     def get_tasz(self, name):
         self.x("SELECT tasz FROM Staff WHERE name == ? OR alias1 == ? OR alias2 == ?;",
                [name] * 3)
-        return self.c.fetchone()[0]
+        results = self.c.fetchall()
+        if len(results) > 1:
+            print(f"Multiple TASZ values for NAME: {name} - {', '.join(r[0] for r in results)}")
+        return results[0][0]
 
     def query(self, select, args):
         self.x(select, args)
         return list(self.c.fetchall())
 
     def new_cc(self, ccobj):
-        par = ccobj.parameter
-        fields = par.ccfields + par.statfields
+        ccr = ccobj.ccrec
         insert = " ".join((
-            f"INSERT INTO Kontroll_diagram ({', '.join(fields)}) VALUES",
-            f"({', '.join(['?'*len(fields)])});"
+            f"INSERT INTO Kontroll_diagram ({', '.join(ccr.fields)}) VALUES",
+            f"({', '.join(['?'*len(ccr.data)])});"
         ))
         with self.conn:
-            self.x(insert, (par[f] for f in fields))
+            self.x(insert, ccr.asvals())
 
     def delete_cc(self, ccID):
         delete_data = "DELETE * FROM Kontroll_meres WHERE cc_id == ?;"
@@ -61,17 +74,13 @@ class DBConnection:
             self.x(delete_cc, [ccID])
 
     def update_cc(self, ccobj):
-        par = ccobj.param
-        fields = (
-            "parameter_id", "staff_id", "startdate", "refmaterial",
-            "comment", "refmean", "refstd", "uncertainty"
-        )
+        ccr = ccobj.ccrec
         update = " ".join((
             "UPDATE Control_chart SET ",
-            ", ".join(f"{field} = ?" for field in fields),
+            ", ".join(f"{f} = ?" for f in ccr.fields[1:]),
             "WHERE id = ?"
         ))
-        vals = [par.ccdata[f] for f in fields + ("id",)]
+        vals = [ccobj.ccrec[f] for f in ccr.fields[1:] + ("id",)]
         vals[-4:-1] = map(float, vals[-4:-1])
         with self.conn:
             self.x(update, vals)

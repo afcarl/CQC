@@ -7,7 +7,7 @@ def floatify(string):
         string = string.get()
     if string:
         return float(string.replace(",", "."))
-    return None
+    raise ValueError(f"Cannot floatify {string}!")
 
 
 def replace_toplevel(master, toplevel, resizeable=False):
@@ -26,3 +26,21 @@ def validate_date(datestr):
     except ValueError:
         return False
     return True
+
+
+def dumpobj(obj, path):
+    import pickle
+    import gzip
+    with gzip.open(path, "wb") as handle:
+        pickle.dump(obj, handle)
+
+
+def loadobj(path):
+    import pickle
+    import gzip
+    with gzip.open(path, "rb") as handle:
+        return pickle.load(handle)
+
+
+def datefmt(datetimeobj):
+    return datetime.datetime.strftime(datetimeobj, "%Y.%m.%d")

@@ -6,7 +6,7 @@ from tkinter import (
 
 from controlchart import Measurements
 from util.const import pkw
-from util.routine import floatify, validate_date
+from util.routine import floatify, validate_date, datefmt
 
 
 class _MeasurementTLBase(Toplevel):
@@ -66,7 +66,7 @@ class _MeasurementTLBase(Toplevel):
         return len(self.measure["value"])
 
 
-class MeasurementTurnable(_MeasurementTLBase):
+class EditMeasurements(_MeasurementTLBase):
 
     def __init__(self, master, measure: Measurements, rown=10, **kw):
         super().__init__(master, measure, rown, **kw)
@@ -96,10 +96,10 @@ class MeasurementTurnable(_MeasurementTLBase):
     def update_rowframe(self):
         self.prevbut.configure(state=("disabled" if not self.page else "active"))
         self.nextbut.configure(state=("disabled" if self.page == len(self.pages)-1 else "active"))
-        self.rowframe.display(*self.pages[self.page])
+        self.rowframe.display(*self.pages[self.page], datenow=False)
 
 
-class MeasurementsNewLine(_MeasurementTLBase):
+class NewMeasurements(_MeasurementTLBase):
 
     def __init__(self, master, measureobj: Measurements, rown, **kw):
         super().__init__(master, measureobj, rown, **kw)
@@ -112,7 +112,7 @@ class MeasurementsNewLine(_MeasurementTLBase):
                ).grid(row=2, column=0, columnspan=2, sticky="news")
 
     def update_rowframe(self):
-        self.rowframe.display()
+        self.rowframe.display(datenow=True)
 
 
 class _RowFrame(Frame):
@@ -133,12 +133,12 @@ class _RowFrame(Frame):
         Label(self.dataframe, text="Mérés dátuma", width=15, **lkw).grid(column=1, **gkw)
         Label(self.dataframe, text="Megjegyzés", width=30, **lkw).grid(column=2, **gkw)
 
-    def display(self, values=(), dates=(), comments=()):
+    def display(self, values=(), dates=(), comments=(), datenow=True):
         self.reset()
         assert len(values) == len(dates)
         assert len(values) <= self.maxrow
         self.add_rows(values, dates, comments)
-        self.add_empties(self.maxrow - len(values))
+        self.add_empties(self.maxrow - len(values), datenow)
 
     def add_rows(self, values, dates, comments):
         for value, date, comment in zip(values, dates, comments):
@@ -148,11 +148,11 @@ class _RowFrame(Frame):
             self.variables[-1][2].trace("w", self.varchange)
         self.update_rows()
 
-    def add_empties(self, N):
-        now = datetime.datetime.now().strftime("%Y.%m.%d")
+    def add_empties(self, N, datenow=True):
+        datefill = datefmt(datetime.datetime.now()) if datenow else ""
         self.add_rows(
             values=("" for _ in range(N)),
-            dates=(now for _ in range(N)),
+            dates=(datefill for _ in range(N)),
             comments=("" for _ in range(N))
         )
 
