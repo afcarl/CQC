@@ -1,7 +1,6 @@
 import datetime
 from tkinter import (
-    Toplevel, Frame, Label, Button, Entry, StringVar,
-    messagebox as tkmb
+    Toplevel, Frame, Label, Button, Entry, StringVar, messagebox as tkmb
 )
 
 from controlchart import Measurements

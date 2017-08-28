@@ -11,20 +11,21 @@ def _throw(errmsg):
 
 
 class _StaffSelector(Combobox):
-    def __init__(self, master, w, **kw):
-        values = [v[0] for v in master.dbifc.query("SELECT name FROM Staff WHERE level == 20 ORDER BY name;")]
-        super().__init__(master, width=w*2-2, values=values, **kw)
+    def __init__(self, master, **kw):
+        values = [v[0] for v in master.dbifc.query(
+            "SELECT name FROM Staff WHERE level == 20 ORDER BY name;")]
+        super().__init__(master, width=(master.width*2)-2, values=values, **kw)
         self.set(master.dbifc.current_user())
 
 
 class _RecEntry(Entry):
-    def __init__(self, master, w, **kw):
-        super().__init__(master, width=w*2-2, **kw)
+    def __init__(self, master, **kw):
+        super().__init__(master, width=master.width*2-2, **kw)
 
 
 class _DateEntry(_RecEntry):
-    def __init__(self, master, w, **kw):
-        super().__init__(master, w, **kw)
+    def __init__(self, master, **kw):
+        super().__init__(master, **kw)
         self.insert(0, datefmt(datetime.now()))
 
 
@@ -35,7 +36,7 @@ class _NewRecord(Toplevel):
     _refnames = ()
     _nicenames = ()
     _wtypes = ()
-    _w = 15
+    width = 15
 
     def __init__(self, master, dbifc, ID=None, **kw):
         super().__init__(master, **kw)
@@ -43,10 +44,10 @@ class _NewRecord(Toplevel):
         self.labels = []
         self.results = self._get_resultobj(ID)
         i = 1
-        Label(self, text=f"Új {self._title} regisztrálása", width=self._w, font=("Times New Roman", 14)
+        Label(self, text=f"Új {self._title} regisztrálása", font=("Times New Roman", 14)
               ).grid(row=0, column=0, columnspan=2, sticky="news")
         for i, tx in enumerate(self._nicenames, start=1):
-            self.labels.append(Label(self, text=tx, justify="left", anchor="w", width=self._w))
+            self.labels.append(Label(self, text=tx, justify="left", anchor="w", width=self.width))
             self.labels[-1].grid(row=i, column=0, sticky="nse")
         self.w = {k: v(self) for k, v in zip(self._refnames, self._wtypes)}
 
@@ -65,7 +66,7 @@ class _NewRecord(Toplevel):
 
     def done(self):
         for validor in self._validorz:
-            if not validor():
+            if not validor(self):
                 return
         self.results.incorporate({k: self.w[k].get() for k in ("name", "mnum", "akkn")})
         print(self.results.data)
@@ -146,18 +147,6 @@ class NewParam(_NewRecord):
 
     _validorz = (_valid_name,)
 
-    def _reset_widget(self, wname):
-        self.w[wname].delete(0, "end")
-        self.w[wname].focus_set()
-
-    def done(self):
-        for validor in self._validorz:
-            if not validor(self):
-                return
-        self.results.incorporate({k: self.w[k].get() for k in ("name", "dimension")})
-        print(self.results.data)
-        self.destroy()
-
 
 class NewCC(_NewRecord):
 
@@ -165,7 +154,7 @@ class NewCC(_NewRecord):
     _refnames = "startdate", "staff", "refmaterial", "comment", "refmean", "refstd", "uncertainty"
     _nicenames = "Felvéve (dátum)", "Felelős", "Anyagminta", "Megjegyzés", "Átlag", "Szórás", "Mérési bizonytalanság"
     _wtypes = _DateEntry, _StaffSelector, _RecEntry, _RecEntry, _RecEntry, _RecEntry, _RecEntry
-    _w = 20
+    width = 20
 
     def _get_resultobj(self, ID):
         return CCRecord.from_values(dict(parameter_id=ID))
@@ -215,18 +204,10 @@ class NewCC(_NewRecord):
 
     _validorz = _valid_startdate, _valid_refmaterial, _valid_refmean, _valid_refstd
 
-    def done(self):
-        for validor in self._validorz:
-            if not validor(self):
-                return
-        self.results.incorporate({k: self.w[k].get() for k in ("name", "dimension")})
-        print(self.results.data)
-        self.destroy()
-
 
 if __name__ == '__main__':
     from tkinter import Tk
     from dbconnection import DBConnection
     tk = Tk()
-    tl = NewCC(tk, DBConnection(), 1)
+    tl = NewMethod(tk, DBConnection(), 1)
     tk.mainloop()

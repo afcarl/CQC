@@ -53,7 +53,7 @@ class DBConnection:
             print(f"Multiple TASZ values for NAME: {name} - {', '.join(r[0] for r in results)}")
         return results[0][0]
 
-    def query(self, select, args):
+    def query(self, select, args=()):
         self.x(select, args)
         return list(self.c.fetchall())
 
