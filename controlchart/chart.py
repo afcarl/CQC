@@ -5,6 +5,9 @@ from util import cacheroot, dumpobj, loadobj
 
 class ControlChart:
 
+    stages = ("method", "param", "cc")
+    rectypes = (MethodRecord, ParameterRecord, CCRecord)
+
     def __init__(self, mrec=None, prec=None, ccrec=None, meas=None, refmeas=None):
         self.mrec = MethodRecord() if mrec is None else mrec
         self.prec = ParameterRecord() if prec is None else prec
@@ -20,6 +23,17 @@ class ControlChart:
         meas = Measurements.from_database(ccID, dbifc, reference=False)
         ref = Measurements.from_database(ccID, dbifc, reference=True)
         return cls(md, pd, ccd, meas, ref)
+
+    @classmethod
+    def build_stage(cls, IDs, stage, dbifc):
+        current = cls.stages.index(stage)
+        ID = IDs[cls.stages[current-1]]
+        rex = []
+        for i in range(cls.stages.index(stage)-1, -1, -1):
+            rec = cls.rectypes[i].from_database(ID, dbifc)
+            ID = rec.upstream_id
+            rex.append(rec)
+        return cls(*rex[::-1])
 
     @staticmethod
     def pklload(path=None):

@@ -1,6 +1,6 @@
 from tkinter import Frame, Label, PhotoImage
 
-from util.const import emptyccimg
+from util.const import emptyccimg, noccimg
 
 
 class ChartHolder(Frame):
@@ -11,9 +11,15 @@ class ChartHolder(Frame):
         self.canvas = Label(self)
         self.canvas.pack()
 
-    def update_image(self, ccobject=None):
-        if ccobject is None or not ccobject.plottable:
+    def update_image(self, ccobject):
+        if ccobject is None:
+            self.ccimg = PhotoImage(file=noccimg)
+        elif not ccobject.plottable:
             self.ccimg = PhotoImage(file=emptyccimg)
         else:
             self.ccimg = PhotoImage(file=ccobject.plot())
         self.canvas.config(image=self.ccimg)
+
+    @property
+    def type(self):
+        return self.__class__.__name__

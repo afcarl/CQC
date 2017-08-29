@@ -1,43 +1,49 @@
-from tkinter import Toplevel, messagebox as tkmb
+from tkinter import Toplevel
 
+from .choicewidget import TkChoice, ChoiceCallbacks
 from dbconnection import DBConnection
-from interface.choicewidget import TkChoice
 from util import pkw
 
 
 # noinspection PyUnusedLocal
 class SelectionWizard(Toplevel):
 
-    def __init__(self, master, **kw):
+    def __init__(self, master, skipempties=True, **kw):
         super().__init__(master, **kw)
-        self.title("Kontroll diagram megnyitása...")
+        self.title("CQC - Objektum kiválasztása")
+        self.transient(master)
         self.dbifc = DBConnection()
         self.data = {}
         self.selection = {}
         self.arg = {}
         self.stage = None
         self.frame = None
-        self.callbacks = dict(back=self.reset, cancel=self.teardown, new=self.new)
+        self.callbacks = ChoiceCallbacks(backcb=self.reset, cancelcb=self.exitcommand, newcb=self.new)
+        self.skipempties = skipempties
         self.reset()
+        self.protocol("WM_DELETE_WINDOW", self.exitcommand)
+
+    def exitcommand(self):
+        self.stage = None
+        self.selection = None
+        self.destroy()
 
     def stage_params(self, event=None):
         if self.selection["method"] is None:
             self.selection["method"] = self.frame.data
         self.query_params()
         data = self.data["param"]
-        if len(data) == 1:
+        self.stage = "param"
+        if len(data) == 1 and self.skipempties:
             self.selection["param"] = data[0][0]
             self.stage_ccs()
             return
-        elif len(data) == 0:
-            msg = "A választott módszerhez nincs rögzítve paraméter!"
-            tkmb.showinfo("Információ", msg)
+        if len(data) == 0:
             self.destroy()
             return
-        self.stage = "param"
         self.frame.destroy()
-        self.frame = TkChoice(self, self.arg[self.stage], self.data[self.stage],
-                              dict(step=self.stage_ccs, **self.callbacks))
+        self.callbacks["step"] = self.stage_ccs
+        self.frame = TkChoice(self, self.arg[self.stage], self.data[self.stage], self.callbacks)
         self.frame.pack(**pkw)
 
     def stage_ccs(self, event=None):
@@ -45,20 +51,18 @@ class SelectionWizard(Toplevel):
             self.selection["param"] = self.frame.data
         self.query_ccs()
         data = self.data["cc"]
-        if len(data) == 1:
+        self.stage = "cc"
+        if len(data) == 1 and self.skipempties:
             self.selection["cc"] = data[0][0]
             self.stage_final()
             return
         elif len(data) == 0:
-            msg = "A választott paraméterhez nem tartozik kontroll diagram!"
-            tkmb.showinfo("Információ", msg)
             self.selection["cc"] = None
             self.destroy()
             return
-        self.stage = "cc"
         self.frame.destroy()
-        self.frame = TkChoice(self, self.arg[self.stage], self.data[self.stage],
-                              dict(step=self.stage_final, **self.callbacks))
+        self.callbacks["step"] = self.stage_final
+        self.frame = TkChoice(self, self.arg[self.stage], self.data[self.stage], self.callbacks)
         self.frame.pack(**pkw)
 
     def stage_final(self, event=None):
@@ -119,8 +123,8 @@ class SelectionWizard(Toplevel):
     def ui_reset(self):
         if self.frame is not None:
             self.frame.destroy()
-        self.frame = TkChoice(self, self.arg[self.stage], self.data[self.stage],
-                              dict(step=self.stage_params, **self.callbacks))
+        self.callbacks["step"] = self.stage_params
+        self.frame = TkChoice(self, self.arg[self.stage], self.data[self.stage], self.callbacks)
         self.frame.pack(**pkw)
 
     def reset(self):
@@ -132,7 +136,7 @@ class SelectionWizard(Toplevel):
         self.destroy()
 
     def new(self):
-        print("Called <new> @ stage:", self.stage)
+        self.destroy()
 
 
 if __name__ == '__main__':

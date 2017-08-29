@@ -44,3 +44,7 @@ def loadobj(path):
 
 def datefmt(datetimeobj):
     return datetime.datetime.strftime(datetimeobj, "%Y.%m.%d")
+
+
+def repeat(N, **vals):
+    return {k: [vals[k] for _ in range(N)] for k in vals if vals[k] is not None}

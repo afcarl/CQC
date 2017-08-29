@@ -10,10 +10,10 @@ from util.routine import floatify, validate_date, datefmt
 
 class _MeasurementTLBase(Toplevel):
 
-    def __init__(self, master, measureobj: Measurements, rown, **kw):
-        title = kw.pop("title")
+    def __init__(self, master, measureobj, rown, title, **kw):
         super().__init__(master, **kw)
         self.title(title)
+        self.transient(master)
         self.measure = measureobj  # type: Measurements
         self.results = []
         self.rowframe = None
@@ -42,6 +42,7 @@ class _MeasurementTLBase(Toplevel):
         raise NotImplementedError
 
     def pull_data(self):
+        results = {"value": [], "date": [], "comment": []}
         for vvar, dvar, cvar in self.rowframe.variables:
             vval = vvar.get()
             if vval == "":
@@ -57,7 +58,10 @@ class _MeasurementTLBase(Toplevel):
                     master=self
                 )
                 return
-            self.results.append([floatify(vval), datestr, cvar.get()])
+            results["value"].append(floatify(vval))
+            results["date"].append(datestr)
+            results["comment"].append(cvar.get())
+        self.measure.extend(results)
         self.destroy()
 
     @property

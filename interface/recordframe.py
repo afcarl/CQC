@@ -2,7 +2,8 @@ from tkinter import Frame, Label, Button, Entry, messagebox as tkmb
 from tkinter.ttk import Combobox
 from datetime import datetime
 
-from controlchart.parameter import MethodRecord, ParameterRecord, CCRecord
+from .measurements import NewMeasurements
+from controlchart.parameter import MethodRecord, ParameterRecord, CCRecord, Measurements
 from util.routine import validate_date, datefmt, floatify
 
 
@@ -10,22 +11,42 @@ def _throw(errmsg):
     tkmb.showerror("Figyelem!", errmsg)
 
 
-def _StaffSelector(master, **kw):
-    values = [v[0] for v in master.dbifc.query(
-        "SELECT name FROM Staff WHERE level == 20 ORDER BY name;")]
-    cb = Combobox(master, width=(master.width*2)-4, values=values, **kw)
-    cb.set(master.dbifc.current_user())
-    return cb
+class _StaffSelector(Combobox):
+
+    def __init__(self, master, **kw):
+        self.dbifc = master.dbifc
+        values = [v[0] for v in master.dbifc.query(
+            "SELECT name FROM Staff WHERE level == 20 ORDER BY name;")]
+        super().__init__(master, width=(master.width*2)-2, values=values, **kw)
+        self.fill()
+
+    def fill(self, refname=None):
+        name = self.master.results["staff_id"]
+        data = self.dbifc.get_username(name) if name else self.dbifc.current_user()
+        self.set(data)
 
 
-def _RecEntry(master, **kw):
-    return Entry(master, width=master.width*2-2, disabledforeground="black", **kw)
+class _RecEntry(Entry):
+
+    def __init__(self, master, **kw):
+        super().__init__(master, width=master.width*2, fg="black", bg="white",
+                         disabledforeground="black", **kw)
+
+    def fill(self, refname):
+        data = self.master.results[refname]
+        self.delete(0, "end")
+        self.insert(0, data if data else "")
 
 
-def _DateEntry(master, **kw):
-    e = _RecEntry(master, **kw)
-    e.insert(0, datefmt(datetime.now()))
-    return e
+class _DateEntry(_RecEntry):
+
+    def __init__(self, master, **kw):
+        super().__init__(master, **kw)
+
+    def fill(self, refname):
+        date = self.master.results[refname]
+        self.delete(0, "end")
+        self.insert(0, datefmt(datetime.now()) if not date else date)
 
 
 class _Record(Frame):
@@ -37,16 +58,16 @@ class _Record(Frame):
     _wtypes = ()
     width = 20
 
-    def __init__(self, master, dbifc, uID=None, newcb=None, resultobj=None, **kw):
+    def __init__(self, master, dbifc, uID=None, resultobj=None, **kw):
         super().__init__(master, **kw)
         self.dbifc = dbifc
         self.upstream_ID = uID
-        if resultobj is None:
-            self.results = {"módszer": MethodRecord, "paraméter": ParameterRecord,
-                            "kontroll diagram": CCRecord}[self._title]()
+        self.empty = not bool(resultobj)
+        self.results = {
+            "módszer": MethodRecord, "paraméter": ParameterRecord, "kontroll diagram": CCRecord
+        }[self._title]() if resultobj is None else resultobj
         Label(self, text=f"{self._title.capitalize()} adatok", font=("Times New Roman", 14),
               bd=2, relief="raised").grid(row=0, column=0, columnspan=2, sticky="news")
-        i = 1
         for i, tx in enumerate(self._nicenames, start=1):
             Label(self, text=tx, justify="left", anchor="w", width=self.width
                   ).grid(row=i, column=0, sticky="nse")
@@ -55,9 +76,12 @@ class _Record(Frame):
         for i, wn in enumerate(self._refnames, start=1):
             self.w[wn].grid(row=i, column=1)
 
-        if newcb is not None:
-            Button(self, text=f"Regisztrált {self._title} megnyitása..."
-                   ).grid(row=i+1, column=0, columnspan=2, sticky="news")
+        if not self.empty:
+            self.fill()
+
+    def fill(self):
+        for rn, w in self.w.items():
+            w.fill(rn)
 
     def _reset_widget(self, wname):
         self.w[wname].delete(0, "end")
@@ -77,7 +101,7 @@ class _Record(Frame):
 
     def unlock(self):
         for w in self.w.values():
-            w.configure(state="active", foreground="black")
+            w.configure(state="normal", foreground="black")
 
 
 class MethodFrame(_Record):
@@ -155,6 +179,21 @@ class CCFrame(_Record):
     _nicenames = "Felvéve (dátum)", "Felelős", "Anyagminta", "Megjegyzés", "Átlag", "Szórás", "Mérési bizonytalanság"
     _wtypes = _DateEntry, _StaffSelector, _RecEntry, _RecEntry, _RecEntry, _RecEntry, _RecEntry
 
+    def __init__(self, master, dbifc, **kw):
+        super().__init__(master, dbifc, **kw)
+        cols, rows = self.grid_size()
+        self.refmeasure_button = Button(
+            self, text="Átlag, szórás számítása", command=self._calc_stat
+        )
+        self.refmeasure_button.grid(row=rows, column=0, columnspan=cols, sticky="news")
+
+    def _calc_stat(self):
+        reftl = NewMeasurements(self, Measurements(globref=True), rown=5, title="Referenciamérések bevitele")
+        self.wait_window(reftl)
+        mu, sigma = reftl.measure.stats()
+        self.results["refmean"], self.results["refstd"] = mu, sigma
+        self.fill()
+
     def _valid_startdate(self):
         startdate = self.w["startdate"].get()
         v = validate_date(startdate)
@@ -194,6 +233,13 @@ class CCFrame(_Record):
         super().check()
         self.results["staff_id"] = self.dbifc.get_tasz(self.w["staff"].get())
 
+    def lock(self):
+        super().lock()
+        self.refmeasure_button.configure(state="disabled")
+
+    def unlock(self):
+        super().unlock()
+        self.refmeasure_button.configure(state="normal")
 
 if __name__ == '__main__':
     from tkinter import Tk

@@ -1,32 +1,24 @@
-from tkinter import StringVar
-
-from util import floatify
+from util import repeat
 
 
 class _Record:
     table = ""
     fields = ()
+    upstream_key = None
 
     def __init__(self, **kw):
         self.validate(kw)
-        self.data = {k: StringVar("") for k in self.fields}
+        self.data = {k: None for k in self.fields}
         self.data.update(kw)
         if "self" in kw:
             self.data.pop("self")
 
-        if not all(isinstance(v, StringVar) for v in self.data.values()):
-            raise ValueError("_ParamData must be initialized with StringVar instances!")
-
         self.__dict__.update(self.data)
-
-    @classmethod
-    def from_values(cls, data):
-        return cls(**{k: StringVar(value=str(v)) for k, v in data.items()})
 
     @classmethod
     def from_database(cls, ID, dbifc):
         dbifc.x(f"SELECT * FROM {cls.table} WHERE id == ?;", [ID])
-        obj = cls.from_values(dict(zip(cls.fields, dbifc.c.fetchone())))
+        obj = cls(**dict(zip(cls.fields, dbifc.c.fetchone())))
         return obj
 
     def incorporate(self, data=None, **kw):
@@ -36,32 +28,39 @@ class _Record:
         if data is not None:
             self.incorporate(**data)
 
-    def asvars(self):
-        return [self.data[var] for var in self.fields]
-
     def asvals(self):
-        return [str(var.get()) for var in self.asvars()]
+        return [self.data[d] for d in self.fields]
 
     def validate(self, data: dict):
         invalid = [k for k in data if k not in self.fields]
         if invalid:
             raise RuntimeError(f"Invalid keywords: {invalid}")
 
+    @property
+    def upstream_id(self):
+        return self[self.upstream_key]
+
     def __getitem__(self, item):
-        return self.data[item].get()
+        if item is None:
+            return None
+        return self.data[item]
 
     def __setitem__(self, key, value):
-        self.data[key].set(str(value))
+        if key not in self.data:
+            raise KeyError(f"No such field: {key}")
+        self.data[key] = value
 
 
 class MethodRecord(_Record):
     table = "Method"
     fields = ("id", "staff_id", "name", "mnum", "akkn")
+    upstream_key = None
 
 
 class ParameterRecord(_Record):
     table = "Parameter"
     fields = ("id", "method_id", "name", "dimension")
+    upstream_key = "method_id"
 
 
 class CCRecord(_Record):
@@ -69,29 +68,34 @@ class CCRecord(_Record):
     fields = ("id", "parameter_id", "staff_id", "startdate", "refmaterial",
               "comment", "refmean", "refstd", "uncertainty")
     statfields = ("refmean", "refstd", "uncertainty")
-
-    def __getitem__(self, field):
-        value = super().__getitem__(field)
-        if field in self.statfields:
-            value = floatify(value)
-        return value
-
-    def asvals(self):
-        vals = super().asvals()
-        vals[-3:] = map(float, vals[-3:])
-        return vals
+    upstream_key = "parameter_id"
 
 
 # noinspection PyMissingConstructor,PyMethodOverriding
 class Measurements(_Record):
-    fields = ("id", "cc_id", "staff_id", "reference", "comment", "date", "value")
     table = "Control_measurement"
+    fields = ("id", "cc_id", "staff_id", "reference", "comment", "date", "value")
+    upstream_key = "cc_id"
 
     def __init__(self, globref=False, **kw):
         self.validate(kw)
         self.globref = globref
-        self.dictionary = {k: [] for k in self.fields}
-        self.dictionary.update(kw)
+        self.data = {k: [] for k in self.fields}
+        self.data.update(kw)
+
+    def extend(self, data):
+        self.validate(data)
+        for key, value in data.items():
+            assert isinstance(value, list)
+            self.data[key].extend(value)
+
+    def setall(self, **kw):
+        assert not all(p is None for p in locals().values())
+        N = len(self.data["value"])
+        assert N
+        if kw.pop("reference", None) is None:
+            reference = self.globref
+        self.extend(repeat(N, **kw))
 
     @classmethod
     def from_database(cls, ccID, dbifc, reference):
@@ -104,15 +108,7 @@ class Measurements(_Record):
         data_transposed = map(list, zip(*dbifc.c.fetchall()))
         return cls(**dict(zip(cls.fields, data_transposed)))
 
-    @classmethod
-    def from_values(cls, data):
-        return cls(**data)
-
-    def asvars(self):
-        raise NotImplementedError
-
-    def __getitem__(self, item):
-        return self.dictionary[item]
-
-    def __setitem__(self, key, value):
-        self.dictionary[key] = value
+    def stats(self):
+        assert self.globref, "Why would you calc stats on non-reference measurements?"
+        from statistics import mean, stdev
+        return mean(self.data["value"]), stdev(self.data["value"])

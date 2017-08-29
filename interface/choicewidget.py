@@ -54,8 +54,8 @@ class TkChoice(Frame):
 
     def _add_scrollbar_to_treeview(self):
         vsb = Scrollbar(self, orient="vertical", command=self.tw.yview)
-        hsb = Scrollbar(self, orient="horizontal", command=self.tw.xview)
-        self.tw.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+        self.tw.configure(yscrollcommand=vsb.set)
+        vsb.pack(side="right", **pkw)
 
     def _build_buttonframe(self, callbacks):
         f = Frame(self)

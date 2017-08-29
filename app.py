@@ -1,6 +1,6 @@
 from tkinter import Tk
 
-from interface.ui_root import CCManagerRoot
+from interface.root_ui import CCManagerRoot
 
 
 def ccmanager_main():

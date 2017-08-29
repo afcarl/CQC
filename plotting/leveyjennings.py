@@ -5,15 +5,14 @@ from scipy import stats
 
 class LeveyJenningsChart(object):
 
-    ax = plt.gca()
-    Xs = None
-
     def __init__(self, param):
-        self.refmean = param.ccdata["refmean"]
-        self.refstd = param.ccdata["refstd"]
-        self.uncertainty = param.ccdata["uncertainty"]
-        self.points = param.measure["value"]
+        self.refmean = param.ccrec["refmean"]
+        self.refstd = param.ccrec["refstd"]
+        self.uncertainty = param.ccrec["uncertainty"]
+        self.points = param.meas["value"]
         self.param = param
+        self.Xs = None
+        self.ax = plt.gca()
 
     def _plot_hlines(self):
 
@@ -28,7 +27,7 @@ class LeveyJenningsChart(object):
             draw_dual(num, color)
 
     def _setup_axes(self):
-        pd = self.param.pdata
+        pd = self.param.prec
         ax = plt.gca()
         ax.set_ylabel(f"{pd['name']} ({pd['dimension']})")
         ax.set_axisbelow(True)
@@ -50,7 +49,7 @@ class LeveyJenningsChart(object):
             z = round(z, 2)
             va = "top" if z < 0 else "bottom"
             z = abs(z)
-            tx = "{} {}\nZ° = {}".format(round(point, 4), self.param.pdata["dimension"], z)
+            tx = "{} {}\nZ° = {}".format(round(point, 4), self.param.prec["dimension"], z)
             # offsx = 10. if point > self.cc.refmean else -10.
             # offsy = 20. if date > np.mean(self.cc.dates) else -10.
             self.ax.annotate(tx, xy=(date, point), xycoords="data",
@@ -85,8 +84,8 @@ class LeveyJenningsChart(object):
         plt.plot(self.Xs, pred, "r--", linewidth=2)
 
     def _set_titles(self):
-        pst = f"Kontroll diagram {self.param.pdata['name']} paraméterhez"
-        pt = f"Anyagminta: {self.param.ccdata['refmaterial']}"
+        pst = f"Kontroll diagram {self.param.prec['name']} paraméterhez"
+        pt = f"Anyagminta: {self.param.ccrec['refmaterial']}"
         plt.title("\n".join((pst, pt)), fontsize=12)
 
     def _create_plot(self, trend=False, annot=True):
@@ -98,9 +97,9 @@ class LeveyJenningsChart(object):
         self._scatter_points(annot=annot)
         if trend:
             self._add_linear_trendline()
-        self._add_zscore_axis(ax)
         self.ax.set_xlim([1, 30])
         self.ax.xaxis.set_ticks(np.arange(0, 30, 2))
+        self._add_zscore_axis(ax)
         self._set_titles()
         plt.tight_layout()
         plt.subplots_adjust(left=0.07, right=0.95)
