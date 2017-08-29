@@ -1,2 +1,2 @@
 from .chart import ControlChart
-from .parameter import Parameter
+from .parameter import Measurements

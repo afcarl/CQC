@@ -1,108 +1,114 @@
-import abc
-from tkinter import StringVar
-
-from util import floatify
+from util import repeat
 
 
-class _ParamData(abc.ABC):
-    type = ""
+class _Record:
     table = ""
     fields = ()
+    upstream_key = None
 
     def __init__(self, **kw):
-        invalid = [k for k in kw if k not in self.fields]
-        if invalid:
-            raise RuntimeError("Wrong keyword arguments: " + str(invalid))
-
-        self.dictionary = {k: StringVar("") for k in self.fields}
-        self.dictionary.update(kw)
+        self.validate(kw)
+        self.data = {k: None for k in self.fields}
+        self.data.update(kw)
         if "self" in kw:
-            self.dictionary.pop("self")
+            self.data.pop("self")
 
-        if not all(isinstance(v, StringVar) for v in self.dictionary.values()):
-            raise ValueError("CCParams must be initialized with StringVar instances!")
-
-        self.__dict__.update(self.dictionary)
-
-    @classmethod
-    def from_values(cls, data):
-        return cls(**{k: StringVar(value=str(v)) for k, v in data.items()})
+        self.__dict__.update(self.data)
 
     @classmethod
     def from_database(cls, ID, dbifc):
         dbifc.x(f"SELECT * FROM {cls.table} WHERE id == ?;", [ID])
-        obj = cls.from_values(dict(zip(cls.fields, dbifc.c.fetchone())))
+        obj = cls(**dict(zip(cls.fields, dbifc.c.fetchone())))
         return obj
 
-    def incorporate_values(self, data=None, **kw):
-        invalid = [k for k in kw if k not in self.fields]
-        if data is not None:
-            invalid += [k for k in data if k not in self.fields]
-        assert not invalid, "Invalid keywords: " + str(invalid)
+    def incorporate(self, data=None, **kw):
+        self.validate(kw)
         for k, v in kw.items():
-            self.dictionary[k].set(str(v))
+            self.__setitem__(k, v)
         if data is not None:
-            for k, v in data.items():
-                self.dictionary[k].set(str(v))
-
-    def asvars(self):
-        return [self.dictionary[var] for var in self.fields]
+            self.incorporate(**data)
 
     def asvals(self):
-        return [str(var.get()) for var in self.asvars()]
+        return [self.data[d] for d in self.fields]
+
+    def validate(self, data: dict):
+        invalid = [k for k in data if k not in self.fields]
+        if invalid:
+            raise RuntimeError(f"Invalid keywords: {invalid}")
+
+    @property
+    def upstream_id(self):
+        return self[self.upstream_key]
 
     def __getitem__(self, item):
-        if item not in self.dictionary:
-            raise KeyError("No such param: " + str(item))
-        return self.dictionary[item].get()
+        if item is None:
+            return None
+        return self.data[item]
 
     def __setitem__(self, key, value):
-        if key not in self.dictionary:
-            raise KeyError("No such param: " + str(key))
-        self.dictionary[key].set(str(value))
+        if key not in self.data:
+            raise KeyError(f"No such field: {key}")
+        self.data[key] = value
 
 
-class MethodData(_ParamData):
-    type = "methoddata"
+class MethodRecord(_Record):
     table = "Method"
     fields = ("id", "staff_id", "name", "mnum", "akkn")
+    upstream_key = None
 
 
-class ParameterData(_ParamData):
-    type = "parameterdata"
+class ParameterRecord(_Record):
     table = "Parameter"
     fields = ("id", "method_id", "name", "dimension")
+    upstream_key = "method_id"
 
 
-class CCData(_ParamData):
-    type = "ccdata"
+class CCRecord(_Record):
     table = "Control_chart"
     fields = ("id", "parameter_id", "staff_id", "startdate", "refmaterial",
               "comment", "refmean", "refstd", "uncertainty")
     statfields = ("refmean", "refstd", "uncertainty")
-
-    def __getitem__(self, field):
-        value = super().__getitem__(field)
-        if field in self.statfields:
-            value = floatify(value)
-        return value
-
-    def asvals(self):
-        vals = super().asvals()
-        vals[-3:] = map(float, vals[-3:])
-        return vals
+    upstream_key = "parameter_id"
 
 
-class Parameter:
+# noinspection PyMissingConstructor,PyMethodOverriding
+class Measurements(_Record):
+    table = "Control_measurement"
+    fields = ("id", "cc_id", "staff_id", "reference", "comment", "date", "value")
+    upstream_key = "cc_id"
 
-    def __init__(self, mdata=None, pdata=None, ccdata=None):
-        self.mdata = MethodData() if mdata is None else mdata
-        self.pdata = ParameterData() if pdata is None else pdata
-        self.ccdata = CCData() if ccdata is None else ccdata
+    def __init__(self, globref=False, **kw):
+        self.validate(kw)
+        self.globref = globref
+        self.data = {k: [] for k in self.fields}
+        self.data.update(kw)
+
+    def extend(self, data):
+        self.validate(data)
+        for key, value in data.items():
+            assert isinstance(value, list)
+            self.data[key].extend(value)
+
+    def setall(self, **kw):
+        assert not all(p is None for p in locals().values())
+        N = len(self.data["value"])
+        assert N
+        if kw.pop("reference", None) is None:
+            reference = self.globref
+        self.extend(repeat(N, **kw))
 
     @classmethod
-    def populate(cls, ccID, dbifc):
-        ccd = CCData.from_database(ccID, dbifc)
-        pd = ParameterData.from_database(ccd["parameter_id"], dbifc)
-        md = MethodData.from_database(pd["method_id"], dbifc)
-        return cls(md, pd, ccd)
+    def from_database(cls, ccID, dbifc, reference):
+        select = " ".join((
+            f"SELECT {', '.join(cls.fields)} FROM {cls.table}",
+            f" WHERE cc_ID == ? AND",
+            "reference;" if reference else "NOT reference;"
+        ))
+        dbifc.x(select, [ccID])
+        data_transposed = map(list, zip(*dbifc.c.fetchall()))
+        return cls(**dict(zip(cls.fields, data_transposed)))
+
+    def stats(self):
+        assert self.globref, "Why would you calc stats on non-reference measurements?"
+        from statistics import mean, stdev
+        return mean(self.data["value"]), stdev(self.data["value"])
