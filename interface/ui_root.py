@@ -43,10 +43,6 @@ class CCManagerRoot(Frame):
         self.propspanel = PropertiesPanel(self.mainframe, self.ccobject)
         self.activate_panel("control chart")
         bframe = Frame(self)
-        bs = [Button(bframe, text="Kész", command=self.savecc_cmd),
-              Button(bframe, text="Törlés", command=self.deletecc_cmd)]
-        for b in bs:
-            b.pack(side="left", **pkw)
         self.switchbutton = Button(
             bframe, text="Nézetváltás", command=self.switch_panel
         )

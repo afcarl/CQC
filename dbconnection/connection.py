@@ -41,9 +41,7 @@ class DBConnection:
 
     def get_username(self, tasz, alias=0):
         col = ["name", "alias1", "alias2"]
-        c = self.conn.cursor()
-        c.execute(f"SELECT {col[alias]} FROM Staff WHERE tasz == ?;", [tasz])
-        return c.fetchone()[0]
+        return self.query(f"SELECT {col[alias]} FROM Staff WHERE tasz == ?;", [tasz])
 
     def get_tasz(self, name):
         self.x("SELECT tasz FROM Staff WHERE name == ? OR alias1 == ? OR alias2 == ?;",

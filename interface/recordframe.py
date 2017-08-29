@@ -1,4 +1,4 @@
-from tkinter import Toplevel, Label, Button, Entry, messagebox as tkmb
+from tkinter import Frame, Label, Button, Entry, messagebox as tkmb
 from tkinter.ttk import Combobox
 from datetime import datetime
 
@@ -10,61 +10,60 @@ def _throw(errmsg):
     tkmb.showerror("Figyelem!", errmsg)
 
 
-class _StaffSelector(Combobox):
-    def __init__(self, master, **kw):
-        values = [v[0] for v in master.dbifc.query(
-            "SELECT name FROM Staff WHERE level == 20 ORDER BY name;")]
-        super().__init__(master, width=(master.width*2)-2, values=values, **kw)
-        self.set(master.dbifc.current_user())
+def _StaffSelector(master, **kw):
+    values = [v[0] for v in master.dbifc.query(
+        "SELECT name FROM Staff WHERE level == 20 ORDER BY name;")]
+    cb = Combobox(master, width=(master.width*2)-4, values=values, **kw)
+    cb.set(master.dbifc.current_user())
+    return cb
 
 
-class _RecEntry(Entry):
-    def __init__(self, master, **kw):
-        super().__init__(master, width=master.width*2-2, **kw)
+def _RecEntry(master, **kw):
+    return Entry(master, width=master.width*2-2, disabledforeground="black", **kw)
 
 
-class _DateEntry(_RecEntry):
-    def __init__(self, master, **kw):
-        super().__init__(master, **kw)
-        self.insert(0, datefmt(datetime.now()))
+def _DateEntry(master, **kw):
+    e = _RecEntry(master, **kw)
+    e.insert(0, datefmt(datetime.now()))
+    return e
 
 
-class _NewRecord(Toplevel):
+class _Record(Frame):
 
     _title = ""
     _validorz = ()
     _refnames = ()
     _nicenames = ()
     _wtypes = ()
-    width = 15
+    width = 20
 
-    def __init__(self, master, dbifc, ID=None, **kw):
+    def __init__(self, master, dbifc, uID=None, newcb=None, resultobj=None, **kw):
         super().__init__(master, **kw)
         self.dbifc = dbifc
-        self.labels = []
-        self.results = self._get_resultobj(ID)
+        self.upstream_ID = uID
+        if resultobj is None:
+            self.results = {"módszer": MethodRecord, "paraméter": ParameterRecord,
+                            "kontroll diagram": CCRecord}[self._title]()
+        Label(self, text=f"{self._title.capitalize()} adatok", font=("Times New Roman", 14),
+              bd=2, relief="raised").grid(row=0, column=0, columnspan=2, sticky="news")
         i = 1
-        Label(self, text=f"Új {self._title} regisztrálása", font=("Times New Roman", 14)
-              ).grid(row=0, column=0, columnspan=2, sticky="news")
         for i, tx in enumerate(self._nicenames, start=1):
-            self.labels.append(Label(self, text=tx, justify="left", anchor="w", width=self.width))
-            self.labels[-1].grid(row=i, column=0, sticky="nse")
+            Label(self, text=tx, justify="left", anchor="w", width=self.width
+                  ).grid(row=i, column=0, sticky="nse")
         self.w = {k: v(self) for k, v in zip(self._refnames, self._wtypes)}
 
         for i, wn in enumerate(self._refnames, start=1):
             self.w[wn].grid(row=i, column=1)
 
-        Button(self, text="Kész", command=self.done).grid(row=i+1, column=1, sticky="news")
-        Button(self, text="Mégse", command=self.destroy).grid(row=i+1, column=0, sticky="news")
-
-    def _get_resultobj(self, ID):
-        raise NotImplementedError
+        if newcb is not None:
+            Button(self, text=f"Regisztrált {self._title} megnyitása..."
+                   ).grid(row=i+1, column=0, columnspan=2, sticky="news")
 
     def _reset_widget(self, wname):
         self.w[wname].delete(0, "end")
         self.w[wname].focus_set()
 
-    def done(self):
+    def check(self):
         for validor in self._validorz:
             if not validor(self):
                 return
@@ -72,16 +71,21 @@ class _NewRecord(Toplevel):
         print(self.results.data)
         self.destroy()
 
+    def lock(self):
+        for w in self.w.values():
+            w.configure(state="disabled", foreground="black")
 
-class NewMethod(_NewRecord):
+    def unlock(self):
+        for w in self.w.values():
+            w.configure(state="active", foreground="black")
+
+
+class MethodFrame(_Record):
 
     _title = "módszer"
     _refnames = "name", "mnum", "akkn", "staff"
     _nicenames = "Megnevezés", "Szám", "Akkred szám", "Felelős"
     _wtypes = _RecEntry, _RecEntry, _RecEntry, _StaffSelector
-
-    def _get_resultobj(self, ID=None):
-        return MethodRecord()
 
     def _valid_name(self):
         valid = bool(self.w["name"].get())
@@ -97,8 +101,7 @@ class NewMethod(_NewRecord):
             mnum = int(mnum)
             if mnum <= 0:
                 raise RuntimeError
-        except Exception as E:
-            del E
+        except ValueError or RuntimeError:
             _throw(err)
             self._reset_widget("mnum")
             return False
@@ -116,54 +119,47 @@ class NewMethod(_NewRecord):
 
     _validorz = _valid_name, _valid_mnum, _valid_akkn
 
-    def done(self):
-        super().done()
+    def check(self):
+        super().check()
         self.results["staff_id"] = self.dbifc.get_tasz(self.w["staff"].get())
 
 
-class NewParam(_NewRecord):
+class ParamFrame(_Record):
 
     _title = "paraméter"
     _refnames = "name", "dimension"
     _nicenames = "Megnevezés", "Mértékegység"
     _wtypes = _RecEntry, _RecEntry
 
-    def _get_resultobj(self, ID):
-        return ParameterRecord.from_values(dict(method_id=ID))
-
     def _valid_name(self):
+        assert self.upstream_ID is not None
         name = self.w["name"].get()
-        valid = bool(name)
-        if not valid:
-            _throw("Nevet kötelező megadni!")
-            self.w["name"].focus_set()
+        if name:
+            got = self.dbifc.query("SELECT id FROM Parameter WHERE method_id == ? AND name == ?",
+                                   [self.upstream_ID, name])
+            if got is None:
+                return True
+            _throw("{name} nevű paraméter már van ehhez a módszerhez!")
         else:
-            self.dbifc.x("SELECT id FROM Parameter WHERE method_id == ? AND name == ?",
-                         [self.results["method_id"], name])
-            if self.dbifc.c.fetchone() is not None:
-                _throw("{name} nevű paraméter már van ehhez a módszerhez!")
-                return False
-        return valid
+            _throw("Nevet kötelező megadni!")
+        self.w["name"].focus_set()
+        return False
 
     _validorz = (_valid_name,)
 
 
-class NewCC(_NewRecord):
+class CCFrame(_Record):
 
     _title = "kontroll diagram"
     _refnames = "startdate", "staff", "refmaterial", "comment", "refmean", "refstd", "uncertainty"
     _nicenames = "Felvéve (dátum)", "Felelős", "Anyagminta", "Megjegyzés", "Átlag", "Szórás", "Mérési bizonytalanság"
     _wtypes = _DateEntry, _StaffSelector, _RecEntry, _RecEntry, _RecEntry, _RecEntry, _RecEntry
-    width = 20
-
-    def _get_resultobj(self, ID):
-        return CCRecord.from_values(dict(parameter_id=ID))
 
     def _valid_startdate(self):
         startdate = self.w["startdate"].get()
         v = validate_date(startdate)
         if not v:
-            tkmb.showerror("Figyelem!", "Helytelen dátum formátum. Helyesen: ÉÉÉÉ.HH.NN")
+            _throw("Helytelen dátum formátum. Helyesen: ÉÉÉÉ.HH.NN")
             self.w["startdate"].delete(0, "end")
             self.w["startdate"].insert(0, datefmt(datetime.now()))
             self.w["startdate"].focus_set()
@@ -176,38 +172,36 @@ class NewCC(_NewRecord):
             self.w["refmaterial"].focus_set()
         return valid
 
-    def _validate_floatvalue(self, name, refstr):
-        err = f"{name} értéket kötelező megadni!"
-        refmean = self.w[refstr].get()
-        if not refmean:
-            _throw(err)
-            return False
+    def _validate_float(self, name, refstr):
+        refstring = self.w[refstr].get()
         try:
-            floatify(refmean)
-        except Exception as E:
-            del E
-            _throw(err)
+            floatify(refstring)
+        except ValueError:
+            _throw(f"{name} értéket kötelező megadni számként!")
+            self.w[refstr].focus_set()
             return False
         return True
 
     def _valid_refmean(self):
-        v = self._validate_floatvalue("Átlag", "refmean")
-        if not v:
-            self.w["refmean"].focus_set()
-        return v
+        return self._validate_float("Átlag", "refmean")
 
     def _valid_refstd(self):
-        v = self._validate_floatvalue("Szórás", "refstd")
-        if not v:
-            self.w["refstd"].focus_set()
-        return v
+        return self._validate_float("Szórás", "refstd")
 
-    _validorz = _valid_startdate, _valid_refmaterial, _valid_refmean, _valid_refstd
+    _validorz = (_valid_startdate, _valid_refmaterial, _valid_refmean, _valid_refstd)
+
+    def check(self):
+        super().check()
+        self.results["staff_id"] = self.dbifc.get_tasz(self.w["staff"].get())
 
 
 if __name__ == '__main__':
     from tkinter import Tk
     from dbconnection import DBConnection
+    conn = DBConnection()
     tk = Tk()
-    tl = NewMethod(tk, DBConnection(), 1)
+    nmkw = dict(master=tk, dbifc=conn, uID=1, bd=3, relief="raised")
+    frames = [MethodFrame(**nmkw), ParamFrame(**nmkw), CCFrame(**nmkw)]
+    for frame in frames:
+        frame.pack()
     tk.mainloop()
