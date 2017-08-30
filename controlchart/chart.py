@@ -30,7 +30,7 @@ class ControlChart:
         current = cls.stages.index(stage)
         ID = IDs[cls.stages[current-1]]
         rex = []
-        for i in range(cls.stages.index(stage)-1, -1, -1):
+        for i in range(current-1, -1, -1):
             rec = cls.rectypes[i].from_database(ID, dbifc)
             ID = rec.upstream_id
             rex.append(rec)

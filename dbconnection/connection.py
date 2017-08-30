@@ -57,19 +57,24 @@ class DBConnection:
         return list(self.c.fetchall())
 
     def insert(self, recobj):
-        keys, values = list(zip(*[[key, val] for key, val in recobj.data if val is not None]))
+        keys, values = list(zip(
+            *[[key, val] for key, val in recobj.data.items() if val is not None]
+        ))
         N = len(keys)
-        sqlcmd = f"INSERT INTO {recobj.table} ({','.join(keys)}) " + \
-                 f"VALUES ({','.join('?' for _ in range(N))});"
-        print("Running insert:", sqlcmd)
-        # with self.conn:
-        #     self.x(sqlcmd, values)
+        sqlcmd = f"INSERT INTO {recobj.table} ({', '.join(keys)}) " + \
+                 f"VALUES ({', '.join('?' for _ in range(N))});"
+        print("Running insert:", sqlcmd, "\n", values)
+        with self.conn:
+            self.x(sqlcmd, values)
+        sqlcmd = " ".join(("SELECT id FROM Control_diagram",
+                           " WHERE startdate == ? AND parameter_id == ?;"))
+        return self.query(sqlcmd, [recobj.ccrec["startdate"], recobj.prec["id"]])[0][0]
 
-    def new_cc(self, ccobj):
-        for stage in ccobj.stages[::-1]:
-            self.insert(ccobj.rec[stage])
-            print("Saved", stage)
-            if stage == ccobj.unsaved:
+    def new_cc(self, ccobj, stage):
+        for stg in ccobj.stages[::-1]:
+            self.insert(ccobj.rec[stg])
+            print("Saved", stg)
+            if stg == stage:
                 break
 
     def delete_cc(self, ccID):

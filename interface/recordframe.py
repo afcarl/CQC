@@ -26,6 +26,9 @@ class _StaffSelector(Combobox):
         data = self.dbifc.get_username(name) if name else self.dbifc.current_user()
         self.set(data)
 
+    def get(self):
+        return self.master.dbifc.get_tasz(super().get())
+
 
 class _RecEntry(Entry):
 
@@ -91,7 +94,7 @@ class _Record(Frame):
         for validor in self._validorz:
             if not validor(self):
                 return None
-        self.results.incorporate({k: self.w[k].get() for k in ("name", "mnum", "akkn")})
+        self.results.incorporate({k: self.w[k].get() for k in self._refnames})
         return self.results
 
     def lock(self):
@@ -106,7 +109,7 @@ class _Record(Frame):
 class MethodFrame(_Record):
 
     _title = "módszer"
-    _refnames = "name", "mnum", "akkn", "staff"
+    _refnames = "name", "mnum", "akkn", "staff_id"
     _nicenames = "Megnevezés", "Szám", "Akkred szám", "Felelős"
     _wtypes = _RecEntry, _RecEntry, _RecEntry, _StaffSelector
 
@@ -132,7 +135,7 @@ class MethodFrame(_Record):
 
     def _valid_akkn(self):
         akkn = self.w["akkn"].get()
-        err = "Helytelen akkreditációs azonosító forma! Helyesen: pl. A/13"
+        err = "Helytelen akkreditációs azonosító formátum! Helyesen: pl. A/13"
         s = akkn.split("/")
         if "/" not in akkn or len(s) != 2 or not s[1].isdigit():
             _throw(err)
@@ -145,7 +148,7 @@ class MethodFrame(_Record):
     def check(self):
         if super().check() is None:
             return None
-        self.results["staff_id"] = self.dbifc.get_tasz(self.w["staff"].get())
+        self.results["staff_id"] = self.w["staff"].get()
         return self.results
 
 
@@ -164,7 +167,7 @@ class ParamFrame(_Record):
                                    [self.results.upstream_id, name])
             if got is None:
                 return True
-            _throw("{name} nevű paraméter már van ehhez a módszerhez!")
+            _throw(f"{name} nevű paraméter már van ehhez a módszerhez!")
         else:
             _throw("Nevet kötelező megadni!")
         self.w["name"].focus_set()
@@ -176,7 +179,7 @@ class ParamFrame(_Record):
 class CCFrame(_Record):
 
     _title = "kontroll diagram"
-    _refnames = "startdate", "staff", "refmaterial", "comment", "refmean", "refstd", "uncertainty"
+    _refnames = "startdate", "staff_id", "refmaterial", "comment", "refmean", "refstd", "uncertainty"
     _nicenames = "Felvéve (dátum)", "Felelős", "Anyagminta", "Megjegyzés", "Átlag", "Szórás", "Mérési bizonytalanság"
     _wtypes = _DateEntry, _StaffSelector, _RecEntry, _RecEntry, _RecEntry, _RecEntry, _RecEntry
 
@@ -242,7 +245,6 @@ class CCFrame(_Record):
     def check(self):
         if super().check() is None:
             return None
-        self.results["staff_id"] = self.dbifc.get_tasz(self.w["staff"].get())
         return self.results
 
     def lock(self):
@@ -252,14 +254,3 @@ class CCFrame(_Record):
     def unlock(self):
         super().unlock()
         self.refmeasure_button.configure(state="normal")
-
-if __name__ == '__main__':
-    from tkinter import Tk
-    from dbconnection import DBConnection
-    conn = DBConnection()
-    tk = Tk()
-    nmkw = dict(master=tk, dbifc=conn, uID=1, bd=3, relief="raised")
-    frames = [MethodFrame(**nmkw), ParamFrame(**nmkw), CCFrame(**nmkw)]
-    for frame in frames:
-        frame.pack()
-    tk.mainloop()

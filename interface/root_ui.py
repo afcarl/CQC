@@ -2,12 +2,11 @@ from tkinter import Tk, Frame, Button, messagebox as tkmb
 
 from dbconnection import DBConnection
 from controlchart import ControlChart
+from interface.propspanel import PropertiesPanel
 from util import pkw
 
 from .root_menubar import RootMenu
-from .root_mainframe import RootMainFrame
 from .chartholder import ChartHolder
-from .propspanel import PropertiesPanel
 from .selection_wizard import SelectionWizard
 from .measurements import NewMeasurements, EditMeasurements
 
@@ -27,19 +26,23 @@ class CCManagerRoot(Frame):
 
         self.master.config(menu=(RootMenu(self)))
 
-        self.mainframe = RootMainFrame(self)
-        self.mainframe.pack(**pkw)
-
-        self.chartholder = ChartHolder(self.mainframe)
+        self.chartholder = ChartHolder(self)
         self.chartholder.update_image(None)
-        self.propspanel = PropertiesPanel(self.mainframe, self.ccobject, self.dbifc)
-
-        self.mainframe.activate("ChartHolder")
-        Button(self, text="Nézetváltás", command=self.mainframe.switch).pack(**pkw)
+        self.chartholder.pack(**pkw)
+        self.propspanel = None
+        self.properties_button = Button(
+            self, text="Tulajdonságok megjelenítése", state="disabled",
+            command=lambda: self._launch_propspanel(stage=None)
+        )
+        self.properties_button.pack(**pkw)
         self.pack(**pkw)
 
+    def _launch_propspanel(self, stage):
+        if self.propspanel is not None:
+            self.propspanel.destroy()
+        self.propspanel = PropertiesPanel(self, self.ccobject, self.dbifc, stage)
+
     def savecc_cmd(self):
-        self.propspanel.lock()
         if self.ccobject.unsaved is None:
             print("UNSAVED IS NONE! NOT SAVING!")
             return
@@ -59,10 +62,12 @@ class CCManagerRoot(Frame):
         if wiz.stage is None:
             return
         self.ccobject = ControlChart.build_stage(wiz.selection, wiz.stage, self.dbifc)
-        self.propspanel.destroy()
-        self.propspanel = PropertiesPanel(self.mainframe, self.ccobject, self.dbifc)
-        self.propspanel.unlock(until=wiz.stage)
-        self.mainframe.activate("PropertiesPanel")
+        self.chartholder.update_image(self.ccobject)
+        self._launch_propspanel(wiz.stage)
+        self.wait_window(self.propspanel)
+        self.propspanel = None
+        ccID = self.dbifc.new_cc(self.ccobject, wiz.stage)
+        self.ccobject = ControlChart.from_database(ccID, self.dbifc)
         self.chartholder.update_image(self.ccobject)
 
     def opencc_cmd(self):
@@ -74,9 +79,6 @@ class CCManagerRoot(Frame):
             dbifc=self.dbifc, ccID=wiz.selection["cc"],
         )
         self.chartholder.update_image(self.ccobject)
-        self.propspanel.destroy()
-        self.propspanel = PropertiesPanel(self.mainframe, self.ccobject, self.dbifc)
-        self.mainframe.activate("ChartHolder")
 
     def deletecc_cmd(self):
         msg = "Valóban törölni szeretnéd a kontroll diagramot?"
@@ -88,7 +90,6 @@ class CCManagerRoot(Frame):
             print("Backed up ControlChart object to", path)
         self.ccobject = ControlChart()
         self.chartholder.update_image(None)
-        self.propspanel = PropertiesPanel(self.mainframe, self.ccobject, self.dbifc)
 
     def newpoints_cmd(self):
         mtl = NewMeasurements(
