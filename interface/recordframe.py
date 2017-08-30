@@ -21,6 +21,7 @@ class _StaffSelector(Combobox):
         self.fill()
 
     def fill(self, refname=None):
+        del refname
         name = self.master.results["staff_id"]
         data = self.dbifc.get_username(name) if name else self.dbifc.current_user()
         self.set(data)
@@ -58,10 +59,9 @@ class _Record(Frame):
     _wtypes = ()
     width = 20
 
-    def __init__(self, master, dbifc, uID=None, resultobj=None, **kw):
+    def __init__(self, master, dbifc, resultobj=None, **kw):
         super().__init__(master, **kw)
         self.dbifc = dbifc
-        self.upstream_ID = uID
         self.empty = not bool(resultobj)
         self.results = {
             "módszer": MethodRecord, "paraméter": ParameterRecord, "kontroll diagram": CCRecord
@@ -90,10 +90,9 @@ class _Record(Frame):
     def check(self):
         for validor in self._validorz:
             if not validor(self):
-                return
+                return None
         self.results.incorporate({k: self.w[k].get() for k in ("name", "mnum", "akkn")})
-        print(self.results.data)
-        self.destroy()
+        return self.results
 
     def lock(self):
         for w in self.w.values():
@@ -144,8 +143,10 @@ class MethodFrame(_Record):
     _validorz = _valid_name, _valid_mnum, _valid_akkn
 
     def check(self):
-        super().check()
+        if super().check() is None:
+            return None
         self.results["staff_id"] = self.dbifc.get_tasz(self.w["staff"].get())
+        return self.results
 
 
 class ParamFrame(_Record):
@@ -156,7 +157,7 @@ class ParamFrame(_Record):
     _wtypes = _RecEntry, _RecEntry
 
     def _valid_name(self):
-        assert self.upstream_ID is not None
+        assert self.results.upstream_id is not None
         name = self.w["name"].get()
         if name:
             got = self.dbifc.query("SELECT id FROM Parameter WHERE method_id == ? AND name == ?",
@@ -211,6 +212,15 @@ class CCFrame(_Record):
             self.w["refmaterial"].focus_set()
         return valid
 
+    def _valid_unique(self):
+        startdate = self.w["startdate"].get()
+        refmaterial = self.w["refmaterial"].get()
+        sqlcmd = "SELECT id FROM Controll_diagram WHERE startdate == ? AND refmaterial == ?"
+        valid = bool(len(self.dbifc.query(sqlcmd, [startdate, refmaterial])))
+        if not valid:
+            _throw(f"{startdate} dátummal {refmaterial} anyagmintára már létezik kontroll diagram!")
+        return valid
+
     def _validate_float(self, name, refstr):
         refstring = self.w[refstr].get()
         try:
@@ -230,8 +240,10 @@ class CCFrame(_Record):
     _validorz = (_valid_startdate, _valid_refmaterial, _valid_refmean, _valid_refstd)
 
     def check(self):
-        super().check()
+        if super().check() is None:
+            return None
         self.results["staff_id"] = self.dbifc.get_tasz(self.w["staff"].get())
+        return self.results
 
     def lock(self):
         super().lock()

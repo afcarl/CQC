@@ -56,14 +56,21 @@ class DBConnection:
         self.x(select, args)
         return list(self.c.fetchall())
 
+    def insert(self, recobj):
+        keys, values = list(zip(*[[key, val] for key, val in recobj.data if val is not None]))
+        N = len(keys)
+        sqlcmd = f"INSERT INTO {recobj.table} ({','.join(keys)}) " + \
+                 f"VALUES ({','.join('?' for _ in range(N))});"
+        print("Running insert:", sqlcmd)
+        # with self.conn:
+        #     self.x(sqlcmd, values)
+
     def new_cc(self, ccobj):
-        ccr = ccobj.ccrec
-        insert = " ".join((
-            f"INSERT INTO Kontroll_diagram ({', '.join(ccr.fields)}) VALUES",
-            f"({', '.join(['?'*len(ccr.data)])});"
-        ))
-        with self.conn:
-            self.x(insert, ccr.asvals())
+        for stage in ccobj.stages[::-1]:
+            self.insert(ccobj.rec[stage])
+            print("Saved", stage)
+            if stage == ccobj.unsaved:
+                break
 
     def delete_cc(self, ccID):
         delete_data = "DELETE * FROM Kontroll_meres WHERE cc_id == ?;"

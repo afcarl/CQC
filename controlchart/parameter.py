@@ -6,23 +6,19 @@ class _Record:
     fields = ()
     upstream_key = None
 
-    def __init__(self, **kw):
-        self.validate(kw)
+    def __init__(self):
         self.data = {k: None for k in self.fields}
-        self.data.update(kw)
-        if "self" in kw:
-            self.data.pop("self")
-
-        self.__dict__.update(self.data)
+        self.saved = True
 
     @classmethod
     def from_database(cls, ID, dbifc):
         dbifc.x(f"SELECT * FROM {cls.table} WHERE id == ?;", [ID])
-        obj = cls(**dict(zip(cls.fields, dbifc.c.fetchone())))
+        obj = cls()
+        obj.incorporate(dict(zip(cls.fields, dbifc.c.fetchone())))
+        obj.saved = True
         return obj
 
     def incorporate(self, data=None, **kw):
-        self.validate(kw)
         for k, v in kw.items():
             self.__setitem__(k, v)
         if data is not None:
@@ -48,7 +44,10 @@ class _Record:
     def __setitem__(self, key, value):
         if key not in self.data:
             raise KeyError(f"No such field: {key}")
+        if self.data[key] == value:
+            return
         self.data[key] = value
+        self.saved = False
 
 
 class MethodRecord(_Record):
@@ -77,17 +76,16 @@ class Measurements(_Record):
     fields = ("id", "cc_id", "staff_id", "reference", "comment", "date", "value")
     upstream_key = "cc_id"
 
-    def __init__(self, globref=False, **kw):
-        self.validate(kw)
+    def __init__(self, globref=False):
         self.globref = globref
         self.data = {k: [] for k in self.fields}
-        self.data.update(kw)
 
     def extend(self, data):
         self.validate(data)
         for key, value in data.items():
             assert isinstance(value, list)
             self.data[key].extend(value)
+        self.saved = False
 
     def setall(self, **kw):
         assert not all(p is None for p in locals().values())
@@ -106,7 +104,10 @@ class Measurements(_Record):
         ))
         dbifc.x(select, [ccID])
         data_transposed = map(list, zip(*dbifc.c.fetchall()))
-        return cls(**dict(zip(cls.fields, data_transposed)))
+        obj = cls()
+        obj.extend(dict(zip(cls.fields, data_transposed)))
+        obj.saved = True
+        return obj
 
     def stats(self):
         assert self.globref, "Why would you calc stats on non-reference measurements?"

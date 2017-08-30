@@ -84,9 +84,13 @@ class LeveyJenningsChart(object):
         plt.plot(self.Xs, pred, "r--", linewidth=2)
 
     def _set_titles(self):
-        pst = f"Kontroll diagram {self.param.prec['name']} paraméterhez"
-        pt = f"Anyagminta: {self.param.ccrec['refmaterial']}"
-        plt.title("\n".join((pst, pt)), fontsize=12)
+        mr, pr, ccr = self.param.mrec, self.param.prec, self.param.ccrec
+        title = "\n".join((
+            f"Kontroll diagram {pr['name']} paraméterhez",
+            f"NAV SZI {mr['akkn']} - {mr['name']}",
+            f"Anyagminta: {ccr['refmaterial']}"
+        ))
+        plt.title(title, fontsize=12)
 
     def _create_plot(self, trend=False, annot=True):
         gcf = plt.gcf()

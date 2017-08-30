@@ -30,10 +30,10 @@ class TkChoice(Frame):
         self.data = None
         self.tw = None
 
-        Label(self, text=title).pack(**pkw)
+        Label(self, text=title + " kiválasztása").pack(**pkw)
 
         self._build_treeview(data, colnames, widths, callbacks)
-        self._build_buttonframe(callbacks)
+        self._build_buttonframe(callbacks, title)
 
     def _build_treeview(self, data, colnames, widths, callbacks):
         self.tw = Treeview(self, columns=[str(i) for i in range(len(colnames)-1)])
@@ -57,14 +57,14 @@ class TkChoice(Frame):
         self.tw.configure(yscrollcommand=vsb.set)
         vsb.pack(side="right", **pkw)
 
-    def _build_buttonframe(self, callbacks):
+    def _build_buttonframe(self, callbacks, title):
         f = Frame(self)
         if callbacks["back"]:
             Button(f, text="Vissza", command=callbacks["back"]).pack(side="left", **pkw)
         if callbacks["cancel"]:
             Button(f, text="Mégsem", command=callbacks["cancel"]).pack(side="left", **pkw)
         if callbacks["new"]:
-            Button(f, text="Új...", command=callbacks["new"]).pack(side="left", **pkw)
+            Button(f, text=f"Új {title.lower()}...", command=callbacks["new"]).pack(side="left", **pkw)
         self.nextb = Button(f, text="Tovább", command=callbacks["step"], state="disabled")
         self.nextb.pack(side="left", **pkw)
         f.pack(**pkw)

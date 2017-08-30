@@ -14,6 +14,7 @@ class ControlChart:
         self.ccrec = CCRecord() if ccrec is None else ccrec
         self.meas = Measurements() if meas is None else meas
         self.refmeas = Measurements() if refmeas else None
+        self.rec = {"method": self.mrec, "param": self.prec, "cc": self.ccrec}
 
     @classmethod
     def from_database(cls, ccID, dbifc):
@@ -70,6 +71,13 @@ class ControlChart:
     @property
     def ID(self):
         return self.ccrec["id"]
+
+    @property
+    def unsaved(self):
+        for stage in self.stages[::-1]:
+            if not self.rec[stage].saved:
+                return stage
+        return None
 
     @property
     def plottable(self):

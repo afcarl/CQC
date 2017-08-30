@@ -8,7 +8,7 @@ from util import pkw
 # noinspection PyUnusedLocal
 class SelectionWizard(Toplevel):
 
-    def __init__(self, master, skipempties=True, **kw):
+    def __init__(self, master, creation_mode, skipempties=True, **kw):
         super().__init__(master, **kw)
         self.title("CQC - Objektum kiválasztása")
         self.transient(master)
@@ -18,7 +18,9 @@ class SelectionWizard(Toplevel):
         self.arg = {}
         self.stage = None
         self.frame = None
-        self.callbacks = ChoiceCallbacks(backcb=self.reset, cancelcb=self.exitcommand, newcb=self.new)
+        self.callbacks = ChoiceCallbacks(backcb=self.reset if not creation_mode else None,
+                                         cancelcb=self.exitcommand,
+                                         newcb=self.new if creation_mode else None)
         self.skipempties = skipempties
         self.reset()
         self.protocol("WM_DELETE_WINDOW", self.exitcommand)
@@ -107,13 +109,13 @@ class SelectionWizard(Toplevel):
             cc=None
         )
         self.arg = dict(
-            method=("Mérési módszer kiválasztása",
+            method=("Mérési módszer",
                     ["ID", "Akkred", "Megnevezés", "Felelős"],
                     [70, 70, 600, 200]),
-            param=("Kontrollált paraméter kiválasztása",
+            param=("Kontrollált paraméter",
                    ["ID", "Paraméter", "Mértékegység"],
                    [70, 600, 200]),
-            cc=("Kontroll diagram kiválasztása",
+            cc=("Kontroll diagram",
                 ["ID", "Anyagminta", "Dátum", "Felvevő", "Megjegyzés"],
                 [70, 100, 100, 300, 500])
         )
@@ -137,7 +139,3 @@ class SelectionWizard(Toplevel):
 
     def new(self):
         self.destroy()
-
-
-if __name__ == '__main__':
-    SelectionWizard(None).mainloop()
