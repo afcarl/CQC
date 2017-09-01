@@ -36,6 +36,14 @@ class _Record:
     def upstream_id(self):
         return self[self.upstream_key]
 
+    @property
+    def isnew(self):
+        return self.data["id"] is None
+
+    @upstream_id.setter
+    def upstream_id(self, value):
+        self[self.upstream_key] = value
+
     def __getitem__(self, item):
         if item is None:
             return None

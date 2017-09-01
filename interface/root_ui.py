@@ -24,7 +24,9 @@ class CCManagerRoot(Frame):
         self.active_toplevel = None
         self.ccobject = ControlChart()
 
-        self.master.config(menu=(RootMenu(self)))
+        self.menubar = RootMenu(self)
+        self.master.config(menu=self.menubar)
+        self.menubar.lock()
 
         self.chartholder = ChartHolder(self)
         self.chartholder.update_image(None)
@@ -32,12 +34,12 @@ class CCManagerRoot(Frame):
         self.propspanel = None
         self.properties_button = Button(
             self, text="Tulajdonságok megjelenítése", state="disabled",
-            command=lambda: self._launch_propspanel(stage=None)
+            command=lambda: self.launch_propspanel(stage=None)
         )
         self.properties_button.pack(**pkw)
         self.pack(**pkw)
 
-    def _launch_propspanel(self, stage):
+    def launch_propspanel(self, stage=None):
         if self.propspanel is not None:
             self.propspanel.destroy()
         self.propspanel = PropertiesPanel(self, self.ccobject, self.dbifc, stage)
@@ -47,7 +49,7 @@ class CCManagerRoot(Frame):
             print("UNSAVED IS NONE! NOT SAVING!")
             return
         if self.ccobject.ccrec["id"] is None:
-            self.dbifc.new_cc(self.ccobject)
+            self.dbifc.push_object(self.ccobject, "cc")
         else:
             self.dbifc.update_cc(self.ccobject)
 
@@ -63,12 +65,20 @@ class CCManagerRoot(Frame):
             return
         self.ccobject = ControlChart.build_stage(wiz.selection, wiz.stage, self.dbifc)
         self.chartholder.update_image(self.ccobject)
-        self._launch_propspanel(wiz.stage)
+        self.launch_propspanel(wiz.stage)
         self.wait_window(self.propspanel)
+        self.ccobject.set_upstream_ids()
         self.propspanel = None
-        ccID = self.dbifc.new_cc(self.ccobject, wiz.stage)
-        self.ccobject = ControlChart.from_database(ccID, self.dbifc)
+        IDs = self.dbifc.push_object(self.ccobject)
+        rex = self.ccobject.rec
+        for rectype, ID in IDs.items():
+            if ID is None:
+                assert rex[rectype]["id"] is not None, f"@ {rectype} (ID: {ID})"
+            rex[rectype]["id"] = ID
+            assert rex[rectype]["id"] is None, f"@ {rectype} (ID: {ID})\nIDs: {IDs}\nrecdata: {rex[rectype].data}"
         self.chartholder.update_image(self.ccobject)
+        self.menubar.unlock()
+        self.properties_button.configure(state="active")
 
     def opencc_cmd(self):
         wiz = SelectionWizard(self, creation_mode=False, skipempties=True)
@@ -79,6 +89,8 @@ class CCManagerRoot(Frame):
             dbifc=self.dbifc, ccID=wiz.selection["cc"],
         )
         self.chartholder.update_image(self.ccobject)
+        self.menubar.unlock()
+        self.properties_button.configure(state="active")
 
     def deletecc_cmd(self):
         msg = "Valóban törölni szeretnéd a kontroll diagramot?"
@@ -90,6 +102,7 @@ class CCManagerRoot(Frame):
             print("Backed up ControlChart object to", path)
         self.ccobject = ControlChart()
         self.chartholder.update_image(None)
+        self.menubar.lock()
 
     def newpoints_cmd(self):
         mtl = NewMeasurements(

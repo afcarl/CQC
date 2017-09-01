@@ -165,7 +165,7 @@ class ParamFrame(_Record):
         if name:
             got = self.dbifc.query("SELECT id FROM Parameter WHERE method_id == ? AND name == ?",
                                    [self.results.upstream_id, name])
-            if got is None:
+            if not got:
                 return True
             _throw(f"{name} nevű paraméter már van ehhez a módszerhez!")
         else:

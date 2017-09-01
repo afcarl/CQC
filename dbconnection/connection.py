@@ -22,7 +22,6 @@ class DBConnection:
     """
     Modszer -E Parameter -E Kontroll_diagram -E Kontroll_meres
     """
-
     conn = sql.connect(DBPATH)
     c = conn.cursor()
     x = c.execute
@@ -66,16 +65,21 @@ class DBConnection:
         print("Running insert:", sqlcmd, "\n", values)
         with self.conn:
             self.x(sqlcmd, values)
-        sqlcmd = " ".join(("SELECT id FROM Control_diagram",
-                           " WHERE startdate == ? AND parameter_id == ?;"))
-        return self.query(sqlcmd, [recobj.ccrec["startdate"], recobj.prec["id"]])[0][0]
+            return self.c.lastrowid
 
-    def new_cc(self, ccobj, stage):
-        for stg in ccobj.stages[::-1]:
-            self.insert(ccobj.rec[stg])
-            print("Saved", stg)
-            if stg == stage:
-                break
+    def push_object(self, ccobj):
+        IDs = {k: None for k in ccobj.stages}
+        uID = None
+        for stage in ccobj.stages:
+            rec = ccobj.rec[stage]
+            IDs[stage] = rec["id"]
+            if rec["id"] is not None:
+                uID = rec["id"]
+                continue
+            rec.upstream_id = uID
+            uID = self.insert(rec)
+            print("Saved", stage)
+        return IDs
 
     def delete_cc(self, ccID):
         delete_data = "DELETE * FROM Kontroll_meres WHERE cc_id == ?;"
