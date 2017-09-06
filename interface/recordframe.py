@@ -39,7 +39,7 @@ class _RecEntry(Entry):
     def fill(self, refname):
         data = self.master.results[refname]
         self.delete(0, "end")
-        self.insert(0, data if data else "")
+        self.insert(0, "" if data in (None, "") else data)
 
 
 class _DateEntry(_RecEntry):
@@ -64,6 +64,8 @@ class _Record(Frame):
 
     def __init__(self, master, dbifc, resultobj=None, **kw):
         super().__init__(master, **kw)
+        if resultobj is None:
+            print(f"Empty resultobj @ {self._title}")
         self.dbifc = dbifc
         self.empty = not bool(resultobj)
         self.results = {

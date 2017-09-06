@@ -1,4 +1,4 @@
-from tkinter import Tk, Frame, Button, messagebox as tkmb
+from tkinter import Tk, Button, messagebox as tkmb
 
 from dbconnection import DBConnection
 from controlchart import ControlChart
@@ -11,21 +11,21 @@ from .selection_wizard import SelectionWizard
 from .measurements import NewMeasurements, EditMeasurements
 
 
-class CCManagerRoot(Frame):
+class CCManagerRoot(Tk):
 
     dbifc = DBConnection()
 
-    def __init__(self, master: Tk, **kw):
-        super().__init__(master, **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
 
-        self.master.title("CQC - Kontroll diagram modul")
+        self.title("CQC - Kontroll diagram modul")
 
         self.active_panel = None
         self.active_toplevel = None
         self.ccobject = ControlChart()
 
         self.menubar = RootMenu(self)
-        self.master.config(menu=self.menubar)
+        self.config(menu=self.menubar)
         self.menubar.lock()
 
         self.chartholder = ChartHolder(self)
@@ -37,7 +37,6 @@ class CCManagerRoot(Frame):
             command=lambda: self.launch_propspanel(stage=None)
         )
         self.properties_button.pack(**pkw)
-        self.pack(**pkw)
 
     def launch_propspanel(self, stage=None):
         if self.propspanel is not None:
@@ -49,7 +48,7 @@ class CCManagerRoot(Frame):
             print("UNSAVED IS NONE! NOT SAVING!")
             return
         if self.ccobject.ccrec["id"] is None:
-            self.dbifc.push_object(self.ccobject, "cc")
+            self.dbifc.push_object(self.ccobject)
         else:
             self.dbifc.update_cc(self.ccobject)
 
@@ -59,12 +58,9 @@ class CCManagerRoot(Frame):
                    "Szeretnéd menteni?")
             if tkmb.askyesno("Mentetlen adat!", "\n".join(msg)):
                 self.savecc_cmd()
-        wiz = SelectionWizard(self, creation_mode=True, skipempties=False)
-        self.wait_window(wiz)
-        if wiz.stage is None:
+        wiz = self._build_stage()
+        if wiz is None:
             return
-        self.ccobject = ControlChart.build_stage(wiz.selection, wiz.stage, self.dbifc)
-        self.chartholder.update_image(self.ccobject)
         self.launch_propspanel(wiz.stage)
         self.wait_window(self.propspanel)
         self.ccobject.set_upstream_ids()
@@ -85,9 +81,10 @@ class CCManagerRoot(Frame):
         self.wait_window(wiz)
         if wiz.stage is None:
             return
-        self.ccobject = ControlChart.from_database(
+        cc = ControlChart.from_database(
             dbifc=self.dbifc, ccID=wiz.selection["cc"],
         )
+        self.ccobject = cc
         self.chartholder.update_image(self.ccobject)
         self.menubar.unlock()
         self.properties_button.configure(state="active")
@@ -118,3 +115,11 @@ class CCManagerRoot(Frame):
             self, self.ccobject.meas, rown=10, title="Pontok szerkesztése"
         )
         self.wait_window(mtl)
+
+    def _build_stage(self):
+        wiz = SelectionWizard(self, creation_mode=True, skipempties=False)
+        self.wait_window(wiz)
+        if wiz.stage is None:
+            return
+        self.ccobject = ControlChart.build_stage(wiz.selection, wiz.stage, self.dbifc)
+        return wiz

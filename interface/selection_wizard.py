@@ -76,7 +76,8 @@ class SelectionWizard(Toplevel):
         t0, t1 = "Method", "Staff"
         select = " ".join((
             f"SELECT {t0}.id, {t0}.akkn, {t0}.name, {t1}.name",
-            f"FROM {t0} INNER JOIN {t1} ON {t0}.staff_id == {t1}.tasz"
+            f"FROM {t0} INNER JOIN {t1} ON {t0}.staff_id == {t1}.tasz",
+            f"WHERE {t0}.akkn IS NOT NULL;"
         ))
         self.dbifc.x(select)
         self.data["method"] = self.dbifc.c.fetchall()
