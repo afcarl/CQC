@@ -1,7 +1,4 @@
-from util import repeat
-
-
-class _Record:
+class RecordBase:
     table = ""
     fields = ()
     upstream_key = None
@@ -58,66 +55,21 @@ class _Record:
         self.saved = False
 
 
-class MethodRecord(_Record):
+class MethodRecord(RecordBase):
     table = "Method"
     fields = ("id", "staff_id", "name", "mnum", "akkn")
     upstream_key = None
 
 
-class ParameterRecord(_Record):
+class ParameterRecord(RecordBase):
     table = "Parameter"
     fields = ("id", "method_id", "name", "dimension")
     upstream_key = "method_id"
 
 
-class CCRecord(_Record):
+class CCRecord(RecordBase):
     table = "Control_chart"
     fields = ("id", "parameter_id", "staff_id", "startdate", "refmaterial",
               "comment", "refmean", "refstd", "uncertainty")
     statfields = ("refmean", "refstd", "uncertainty")
     upstream_key = "parameter_id"
-
-
-# noinspection PyMissingConstructor,PyMethodOverriding
-class Measurements(_Record):
-    table = "Control_measurement"
-    fields = ("id", "cc_id", "staff_id", "reference", "comment", "date", "value")
-    upstream_key = "cc_id"
-
-    def __init__(self, globref=False):
-        self.globref = globref
-        self.data = {k: [] for k in self.fields}
-
-    def extend(self, data):
-        self.validate(data)
-        for key, value in data.items():
-            assert isinstance(value, list)
-            self.data[key].extend(value)
-        self.saved = False
-
-    def setall(self, **kw):
-        assert not all(p is None for p in locals().values())
-        N = len(self.data["value"])
-        assert N
-        if kw.pop("reference", None) is None:
-            reference = self.globref
-        self.extend(repeat(N, **kw))
-
-    @classmethod
-    def from_database(cls, ccID, dbifc, reference):
-        select = " ".join((
-            f"SELECT {', '.join(cls.fields)} FROM {cls.table}",
-            f" WHERE cc_ID == ? AND",
-            "reference;" if reference else "NOT reference;"
-        ))
-        dbifc.x(select, [ccID])
-        data_transposed = map(list, zip(*dbifc.c.fetchall()))
-        obj = cls()
-        obj.extend(dict(zip(cls.fields, data_transposed)))
-        obj.saved = True
-        return obj
-
-    def stats(self):
-        assert self.globref, "Why would you calc stats on non-reference measurements?"
-        from statistics import mean, stdev
-        return mean(self.data["value"]), stdev(self.data["value"])

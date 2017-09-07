@@ -29,19 +29,20 @@ class TkChoice(Frame):
         title, colnames, widths = arg
         self.data = None
         self.tw = None
+        self.callbacks = callbacks
 
         Label(self, text=title + " kiválasztása").pack(**pkw)
 
-        self._build_treeview(data, colnames, widths, callbacks)
-        self._build_buttonframe(callbacks, title)
+        self._build_treeview(data, colnames, widths)
+        self._build_buttonframe(title)
 
-    def _build_treeview(self, data, colnames, widths, callbacks):
+    def _build_treeview(self, data, colnames, widths):
         self.tw = Treeview(self, columns=[str(i) for i in range(len(colnames)-1)])
         self._configure_treeview(data, colnames, widths)
         self._add_scrollbar_to_treeview()
 
         self.tw.bind("<<TreeviewSelect>>", self.setdata)
-        self.tw.bind("<Double-Button-1>", callbacks["step"])
+        self.tw.bind("<Double-Button-1>", self.doubleclicked)
         self.tw.pack(**pkw)
 
     def _configure_treeview(self, data, colnames, widths):
@@ -57,17 +58,23 @@ class TkChoice(Frame):
         self.tw.configure(yscrollcommand=vsb.set)
         vsb.pack(side="right", **pkw)
 
-    def _build_buttonframe(self, callbacks, title):
+    def _build_buttonframe(self, title):
         f = Frame(self)
-        if callbacks["back"]:
-            Button(f, text="Vissza", command=callbacks["back"]).pack(side="left", **pkw)
-        if callbacks["cancel"]:
-            Button(f, text="Mégsem", command=callbacks["cancel"]).pack(side="left", **pkw)
-        if callbacks["new"]:
-            Button(f, text=f"Új {title.lower()}...", command=callbacks["new"]).pack(side="left", **pkw)
-        self.nextb = Button(f, text="Tovább", command=callbacks["step"], state="disabled")
+        cb = self.callbacks
+        if cb["back"]:
+            Button(f, text="Vissza", command=cb["back"]).pack(side="left", **pkw)
+        if cb["cancel"]:
+            Button(f, text="Mégsem", command=cb["cancel"]).pack(side="left", **pkw)
+        if cb["new"]:
+            Button(f, text=f"Új {title.lower()}...", command=cb["new"]).pack(side="left", **pkw)
+        self.nextb = Button(f, text="Tovább", command=cb["step"], state="disabled")
         self.nextb.pack(side="left", **pkw)
         f.pack(**pkw)
+
+    def doubleclicked(self, event):
+        if not event.widget.selection(items="#0"):
+            return
+        self.callbacks["step"]()
 
     def setdata(self, event):
         sel = event.widget.selection(items="#0")

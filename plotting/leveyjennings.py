@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from scipy import stats
 
 
@@ -101,8 +102,8 @@ class LeveyJenningsChart(object):
         self._scatter_points(annot=annot)
         if trend:
             self._add_linear_trendline()
-        self.ax.set_xlim([1, 30])
-        self.ax.xaxis.set_ticks(np.arange(0, 30, 2))
+        loc = MultipleLocator((len(self.Xs) // 10)+1)
+        self.ax.xaxis.set_major_locator(loc)
         self._add_zscore_axis(ax)
         self._set_titles()
         plt.tight_layout()

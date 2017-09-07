@@ -1,4 +1,5 @@
-from .parameter import MethodRecord, ParameterRecord, CCRecord, Measurements
+from .parameter import MethodRecord, ParameterRecord, CCRecord
+from .measurement import Measurements
 
 from plotting import LeveyJenningsChart
 from util import cacheroot, dumpobj, loadobj
@@ -89,6 +90,8 @@ class ControlChart:
             if not self.rec[stage].saved:
                 return stage
         return None
+
+
 
     @property
     def plottable(self):

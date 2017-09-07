@@ -1,19 +1,20 @@
 from tkinter import Tk, Button, messagebox as tkmb
 
 from dbconnection import DBConnection
-from controlchart import ControlChart
+from midware import ControlChart, User
 from interface.propspanel import PropertiesPanel
 from util import pkw
 
 from .root_menubar import RootMenu
 from .chartholder import ChartHolder
 from .selection_wizard import SelectionWizard
-from .measurements import NewMeasurements, EditMeasurements
+from .measurementwidget import NewMeasurements, EditMeasurements
 
 
 class CCManagerRoot(Tk):
 
     dbifc = DBConnection()
+    user = User.current(dbifc)
 
     def __init__(self, **kw):
         super().__init__(**kw)
@@ -37,6 +38,7 @@ class CCManagerRoot(Tk):
             command=lambda: self.launch_propspanel(stage=None)
         )
         self.properties_button.pack(**pkw)
+        self.protocol("WM_DELETE_WINDOWS", self.teardown)
 
     def launch_propspanel(self, stage=None):
         if self.propspanel is not None:
@@ -63,6 +65,8 @@ class CCManagerRoot(Tk):
             return
         self.launch_propspanel(wiz.stage)
         self.wait_window(self.propspanel)
+        if self.propspanel.canceled:
+            return
         self.ccobject.set_upstream_ids()
         self.propspanel = None
         IDs = self.dbifc.push_object(self.ccobject)
@@ -70,14 +74,14 @@ class CCManagerRoot(Tk):
         for rectype, ID in IDs.items():
             if ID is None:
                 assert rex[rectype]["id"] is not None, f"@ {rectype} (ID: {ID})"
-            rex[rectype]["id"] = ID
             assert rex[rectype]["id"] is None, f"@ {rectype} (ID: {ID})\nIDs: {IDs}\nrecdata: {rex[rectype].data}"
+            rex[rectype]["id"] = ID
         self.chartholder.update_image(self.ccobject)
         self.menubar.unlock()
         self.properties_button.configure(state="active")
 
     def opencc_cmd(self):
-        wiz = SelectionWizard(self, creation_mode=False, skipempties=True)
+        wiz = SelectionWizard(self, creation_mode=False, skipempties=True, dbifc=self.dbifc)
         self.wait_window(wiz)
         if wiz.stage is None:
             return
@@ -102,13 +106,14 @@ class CCManagerRoot(Tk):
         self.menubar.lock()
 
     def newpoints_cmd(self):
-        mtl = NewMeasurements(
-            self, self.ccobject.meas, rown=3, title="Pontok bevitele"
-        )
+        mtl = NewMeasurements(self, rown=3, title="Pontok bevitele")
         self.wait_window(mtl)
-        print("NEW POINTS:")
-        print("VALUE\tDATE\tCOMMENT")
-        print("\n".join("\t".join(map(str, line)) for line in mtl.results))
+        print("VALUES : ", ", ".join(map(str, mtl.measure["value"])))
+        print("DATES  : ", ", ".join(map(str, mtl.measure["date"])))
+        print("COMMENT: ", ", ".join(map(str, mtl.measure["comment"])))
+        mtl.measure.setall(cc_id=self.ccobject.ID, staff_id=self.user["id"], reference=False)
+        self.ccobject.meas.incorporate(mtl.measure.data)
+        self.dbifc.push_measurements(mtl.measure)
 
     def editpoints_cmd(self):
         mtl = EditMeasurements(
@@ -117,9 +122,13 @@ class CCManagerRoot(Tk):
         self.wait_window(mtl)
 
     def _build_stage(self):
-        wiz = SelectionWizard(self, creation_mode=True, skipempties=False)
+        wiz = SelectionWizard(self, creation_mode=True, skipempties=False, dbifc=self.dbifc)
         self.wait_window(wiz)
         if wiz.stage is None:
             return
         self.ccobject = ControlChart.build_stage(wiz.selection, wiz.stage, self.dbifc)
         return wiz
+
+    def teardown(self):
+        print("UI nice shutdown")
+        self.destroy()

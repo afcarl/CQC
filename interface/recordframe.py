@@ -2,8 +2,9 @@ from tkinter import Frame, Label, Button, Entry, messagebox as tkmb
 from tkinter.ttk import Combobox
 from datetime import datetime
 
-from .measurements import NewMeasurements
-from controlchart.parameter import MethodRecord, ParameterRecord, CCRecord, Measurements
+from .measurementwidget import NewMeasurements
+from midware.parameter import MethodRecord, ParameterRecord, CCRecord
+from midware import Measurements
 from util.routine import validate_date, datefmt, floatify
 
 
@@ -22,12 +23,12 @@ class _StaffSelector(Combobox):
 
     def fill(self, refname=None):
         del refname
-        name = self.master.results["staff_id"]
-        data = self.dbifc.get_username(name) if name else self.dbifc.current_user()
+        userid = self.master.results["staff_id"]
+        data = self.dbifc.get_username(userid) if userid else self.master.master.master.user["name"]
         self.set(data)
 
     def get(self):
-        return self.master.dbifc.get_tasz(super().get())
+        return self.master.dbifc.get_userid(super().get())
 
 
 class _RecEntry(Entry):
@@ -206,7 +207,7 @@ class CCFrame(_Record):
         if not v:
             _throw("Helytelen dátum formátum. Helyesen: ÉÉÉÉ.HH.NN")
             self.w["startdate"].delete(0, "end")
-            self.w["startdate"].insert(0, datefmt(datetime.now()))
+            self.w["startdate"].push_record(0, datefmt(datetime.now()))
             self.w["startdate"].focus_set()
         return v
 

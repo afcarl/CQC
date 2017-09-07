@@ -3,7 +3,7 @@ from tkinter import (
     Toplevel, Frame, Label, Button, Entry, StringVar, messagebox as tkmb
 )
 
-from controlchart import Measurements
+from midware import Measurements
 from util.const import pkw
 from util.routine import floatify, validate_date, datefmt
 
@@ -14,9 +14,9 @@ class _MeasurementTLBase(Toplevel):
         super().__init__(master, **kw)
         self.title(title)
         self.transient(master)
-        self.measure = measureobj  # type: Measurements
-        self.results = []
+        self.result = dict(value=[], date=[], comment=[])
         self.rowframe = None
+        self.measure = measureobj  # type: Measurements
         self.rown = rown
         self.protocol("WM_DELETE_WINDOW", self._exitcallback)
 
@@ -42,7 +42,6 @@ class _MeasurementTLBase(Toplevel):
         raise NotImplementedError
 
     def pull_data(self):
-        results = {"value": [], "date": [], "comment": []}
         for vvar, dvar, cvar in self.rowframe.variables:
             vval = vvar.get()
             if vval == "":
@@ -58,10 +57,9 @@ class _MeasurementTLBase(Toplevel):
                     master=self
                 )
                 return
-            results["value"].append(floatify(vval))
-            results["date"].append(datestr)
-            results["comment"].append(cvar.get())
-        self.measure.extend(results)
+            self.result["value"].append(floatify(vval))
+            self.result["date"].append(datestr)
+            self.result["comment"].append(cvar.get())
         self.destroy()
 
     @property
@@ -104,8 +102,8 @@ class EditMeasurements(_MeasurementTLBase):
 
 class NewMeasurements(_MeasurementTLBase):
 
-    def __init__(self, master, measureobj: Measurements, rown, **kw):
-        super().__init__(master, measureobj, rown, **kw)
+    def __init__(self, master, rown, **kw):
+        super().__init__(master, Measurements(), rown, **kw)
         self._build_interface()
 
     def _build_interface(self):
@@ -116,6 +114,10 @@ class NewMeasurements(_MeasurementTLBase):
 
     def update_rowframe(self):
         self.rowframe.display(datenow=True)
+
+    def pull_data(self):
+        super().pull_data()
+        self.measure.incorporate(self.result)
 
 
 class _RowFrame(Frame):

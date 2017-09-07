@@ -1,21 +1,6 @@
 import sqlite3 as sql
 
-from util.const import DBPATH, METAPATH
-
-
-def read_meta(path):
-    try:
-        with open(path) as fileobj:
-            data = fileobj.read()
-    except FileNotFoundError:
-        print("MetaHandler: no metadata file :(")
-        return {}
-    lines = data.split("\n")
-    mapping = {
-        k.strip(): v.strip() for k, v in
-        [line.split(":") for line in lines if line]
-    }
-    return mapping
+from util.const import DBPATH
 
 
 class DBConnection:
@@ -25,47 +10,38 @@ class DBConnection:
     conn = sql.connect(DBPATH)
     c = conn.cursor()
     x = c.execute
-    meta = read_meta(METAPATH)
-    _currentuser = None
 
-    def current_user(self, gettasz=False):
-        if self._currentuser is None:
-            import getpass
-            tasz = getpass.getuser()
-            if not tasz.isdigit():
-                tasz = "315855"
-            self.x("SELECT * FROM Staff WHERE tasz == ?;", [tasz])
-            self._currentuser = self.c.fetchone()
-        return self._currentuser[int(not gettasz)]
-
-    def get_username(self, tasz, alias=0):
+    def get_username(self, ID, alias=0):
         col = ["name", "alias1", "alias2"]
-        got = self.query(f"SELECT {col[alias]} FROM Staff WHERE tasz == ?;", [tasz])
+        got = self.query(f"SELECT {col[alias]} FROM Staff WHERE id == ?;", [ID])
         return got[0][0] if got else ""
 
-    def get_tasz(self, name):
-        self.x("SELECT tasz FROM Staff WHERE name == ? OR alias1 == ? OR alias2 == ?;",
+    def get_userid(self, name):
+        self.x("SELECT id FROM Staff WHERE name == ? OR alias1 == ? OR alias2 == ?;",
                [name] * 3)
         results = self.c.fetchall()
         if len(results) > 1:
-            print(f"Multiple TASZ values for NAME: {name} - {', '.join(r[0] for r in results)}")
+            print(f"Multiple ID values for NAME: {name} - {', '.join(r[0] for r in results)}")
         return results[0][0]
 
     def query(self, select, args=()):
         self.x(select, args)
         return list(self.c.fetchall())
 
-    def insert(self, recobj):
-        keys, values = list(zip(
-            *[[key, val] for key, val in recobj.data.items() if val is not None]
-        ))
-        N = len(keys)
-        sqlcmd = f"INSERT INTO {recobj.table} ({', '.join(keys)}) " + \
-                 f"VALUES ({', '.join('?' for _ in range(N))});"
+    def insert(self, tablename, keys, values):
+        assert len(keys) == len(values)
+        sqlcmd = f"INSERT INTO {tablename} ({', '.join(keys)}) " + \
+                 f"VALUES ({', '.join('?' for _ in range(len(keys)))});"
         print("Running insert:", sqlcmd, "\n", values)
         with self.conn:
             self.x(sqlcmd, values)
-            return self.c.lastrowid
+
+    def push_record(self, recobj):
+        keys, values = list(zip(
+            *[[key, val] for key, val in recobj.data.items() if val is not None]
+        ))
+        self.insert(recobj.table, keys, values)
+        return self.c.lastrowid
 
     def push_object(self, ccobj):
         IDs = {k: None for k in ccobj.stages}
@@ -77,9 +53,16 @@ class DBConnection:
                 uID = rec["id"]
                 continue
             rec.upstream_id = uID
-            uID = self.insert(rec)
+            uID = self.push_record(rec)
             print("Saved", stage)
         return IDs
+
+    def push_measurements(self, meas):
+        fields = ','.join(meas.fields[1:])
+        qmarks = ','.join('?' for _ in range(len(meas['value'])))
+        insert = f"INSERT INTO Control_measurement ({fields}) VALUES ({qmarks})"
+        data = meas.asmatrix(transpose=True)
+        self.c.executemany(insert, data)
 
     def delete_cc(self, ccID):
         delete_data = "DELETE * FROM Kontroll_meres WHERE cc_id == ?;"

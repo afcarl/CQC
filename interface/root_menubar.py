@@ -21,7 +21,7 @@ class RootMenu(Menu):
         fm.add_separator()
         fm.add_command(label="Biztonsági mentések...")
         fm.add_separator()
-        fm.add_command(label="Kilépés")
+        fm.add_command(label="Kilépés", command=m.teardown)
         self.add_cascade(label="Fájl", menu=fm)
         self.filemenu = fm
 

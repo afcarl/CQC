@@ -1,7 +1,7 @@
 from tkinter import Toplevel, Button
 
 from .recordframe import MethodFrame, ParamFrame, CCFrame
-from controlchart import ControlChart
+from midware import ControlChart
 from util import pkw
 
 pcfg = dict(bd=4, relief="raised")
@@ -16,6 +16,7 @@ class PropertiesPanel(Toplevel):
         self.title("Kontroll diagram tulajdonságok")
         self.transient(master)
 
+        self.canceled = False
         self.stage = stage
         self.ccobj = ccobj
         self.frames = {
@@ -30,8 +31,13 @@ class PropertiesPanel(Toplevel):
         else:
             self.botbut = Button(self, text="Szerkesztés", state="active", command=self.editcommand)
         self.botbut.pack(**pkw)
+        self.protocol("WM_DELETE_WINDOW", self.exitcommand)
         self.lock()
         self.unlock()
+
+    def exitcommand(self):
+        self.canceled = True
+        self.destroy()
 
     def editcommand(self):
         self.stage = "cc"
