@@ -114,6 +114,7 @@ class CCManagerRoot(Tk):
         mtl.measure.setall(cc_id=self.ccobject.ID, staff_id=self.user["id"], reference=False)
         self.ccobject.meas.incorporate(mtl.measure.data)
         self.dbifc.push_measurements(mtl.measure)
+        self.chartholder.update_image(self.ccobject)
 
     def editpoints_cmd(self):
         mtl = EditMeasurements(

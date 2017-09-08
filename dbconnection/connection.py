@@ -59,10 +59,11 @@ class DBConnection:
 
     def push_measurements(self, meas):
         fields = ','.join(meas.fields[1:])
-        qmarks = ','.join('?' for _ in range(len(meas['value'])))
+        qmarks = ','.join('?' for _ in range(len(meas.fields)-1))
         insert = f"INSERT INTO Control_measurement ({fields}) VALUES ({qmarks})"
         data = meas.asmatrix(transpose=True)
-        self.c.executemany(insert, data)
+        with self.conn:
+            self.c.executemany(insert, data)
 
     def delete_cc(self, ccID):
         delete_data = "DELETE * FROM Kontroll_meres WHERE cc_id == ?;"

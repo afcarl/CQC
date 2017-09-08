@@ -30,6 +30,8 @@ class Measurements(RecordBase):
 
     def asmatrix(self, transpose=True):
         mydata = [self.data[field] for field in self.fields[1:]]
+        lenz = list(map(len, mydata))
+        assert lenz.count(lenz[0]) == len(lenz)
         return list(map(list, zip(*mydata))) if transpose else mydata
 
     @classmethod
