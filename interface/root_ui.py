@@ -78,7 +78,7 @@ class CCManagerRoot(Tk):
             rex[rectype]["id"] = ID
         self.chartholder.update_image(self.ccobject)
         self.menubar.unlock()
-        self.properties_button.configure(state="active")
+        self.properties_butt0on.configure(state="active")
 
     def opencc_cmd(self):
         wiz = SelectionWizard(self, creation_mode=False, skipempties=True, dbifc=self.dbifc)
