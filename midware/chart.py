@@ -1,4 +1,6 @@
-from .parameter import MethodRecord, ParameterRecord, CCRecord, Measurements
+from .parameter import MethodRecord, ParameterRecord, CCRecord
+from .measurement import Measurements
+
 from plotting import LeveyJenningsChart
 from util import cacheroot, dumpobj, loadobj
 
@@ -14,6 +16,17 @@ class ControlChart:
         self.ccrec = CCRecord() if ccrec is None else ccrec
         self.meas = Measurements() if meas is None else meas
         self.refmeas = Measurements() if refmeas else None
+        self.rec = {"method": self.mrec, "param": self.prec, "cc": self.ccrec}
+        self.set_upstream_ids()
+
+    def set_upstream_ids(self):
+        for pst, nst in zip(self.stages[:-1], self.stages[1:]):
+            prv, nxt = self.rec[pst], self.rec[nst]
+            pID, nuID = prv["id"], nxt.upstream_id
+            if pID is not None and nuID is None:
+                nxt.upstream_id = pID
+            else:
+                assert pID == nuID
 
     @classmethod
     def from_database(cls, ccID, dbifc):
@@ -26,10 +39,10 @@ class ControlChart:
 
     @classmethod
     def build_stage(cls, IDs, stage, dbifc):
-        current = cls.stages.index(stage)
-        ID = IDs[cls.stages[current-1]]
+        curix = cls.stages.index(stage)
+        ID = IDs[cls.stages[curix-1]]
         rex = []
-        for i in range(cls.stages.index(stage)-1, -1, -1):
+        for i in range(curix-1, -1, -1):
             rec = cls.rectypes[i].from_database(ID, dbifc)
             ID = rec.upstream_id
             rex.append(rec)
@@ -70,6 +83,15 @@ class ControlChart:
     @property
     def ID(self):
         return self.ccrec["id"]
+
+    @property
+    def unsaved(self):
+        for stage in self.stages[::-1]:
+            if not self.rec[stage].saved:
+                return stage
+        return None
+
+
 
     @property
     def plottable(self):

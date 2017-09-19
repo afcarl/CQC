@@ -1,24 +1,27 @@
 from tkinter import Toplevel
 
 from .choicewidget import TkChoice, ChoiceCallbacks
-from dbconnection import DBConnection
+
 from util import pkw
 
 
 # noinspection PyUnusedLocal
 class SelectionWizard(Toplevel):
 
-    def __init__(self, master, skipempties=True, **kw):
+    def __init__(self, master, creation_mode, dbifc, skipempties=True, **kw):
         super().__init__(master, **kw)
         self.title("CQC - Objektum kiválasztása")
         self.transient(master)
-        self.dbifc = DBConnection()
+        self.dbifc = dbifc
         self.data = {}
         self.selection = {}
         self.arg = {}
         self.stage = None
         self.frame = None
-        self.callbacks = ChoiceCallbacks(backcb=self.reset, cancelcb=self.exitcommand, newcb=self.new)
+        self.callbacks = ChoiceCallbacks(backcb=self.reset if not creation_mode else None,
+                                         cancelcb=self.exitcommand,
+                                         newcb=self.new if creation_mode else None)
+        self.creation_mode = creation_mode
         self.skipempties = skipempties
         self.reset()
         self.protocol("WM_DELETE_WINDOW", self.exitcommand)
@@ -29,11 +32,11 @@ class SelectionWizard(Toplevel):
         self.destroy()
 
     def stage_params(self, event=None):
+        self.stage = "param"
         if self.selection["method"] is None:
             self.selection["method"] = self.frame.data
         self.query_params()
         data = self.data["param"]
-        self.stage = "param"
         if len(data) == 1 and self.skipempties:
             self.selection["param"] = data[0][0]
             self.stage_ccs()
@@ -47,16 +50,15 @@ class SelectionWizard(Toplevel):
         self.frame.pack(**pkw)
 
     def stage_ccs(self, event=None):
+        self.stage = "cc"
         if self.selection["param"] is None:
             self.selection["param"] = self.frame.data
+        if self.creation_mode:
+            self.destroy()
+            return
         self.query_ccs()
         data = self.data["cc"]
-        self.stage = "cc"
-        if len(data) == 1 and self.skipempties:
-            self.selection["cc"] = data[0][0]
-            self.stage_final()
-            return
-        elif len(data) == 0:
+        if len(data) == 0:
             self.selection["cc"] = None
             self.destroy()
             return
@@ -74,26 +76,24 @@ class SelectionWizard(Toplevel):
         t0, t1 = "Method", "Staff"
         select = " ".join((
             f"SELECT {t0}.id, {t0}.akkn, {t0}.name, {t1}.name",
-            f"FROM {t0} INNER JOIN {t1} ON {t0}.staff_id == {t1}.tasz"
+            f"FROM {t0} INNER JOIN {t1} ON {t0}.staff_id == {t1}.id",
+            f"WHERE {t0}.akkn <> '';"
         ))
-        self.dbifc.x(select)
-        self.data["method"] = self.dbifc.c.fetchall()
+        self.data["method"] = self.dbifc.query(select)
 
     def query_params(self):
         select = "SELECT id, name, dimension FROM Parameter WHERE method_id == ?"
-        self.dbifc.x(select, (self.selection["method"],))
-        self.data["param"] = self.dbifc.c.fetchall()
+        self.data["param"] = self.dbifc.query(select, [self.selection["method"]])
 
     def query_ccs(self):
         t0 = "Control_chart"
         t1 = "Staff"
         select = " ".join((
             f"SELECT {t0}.id, {t0}.refmaterial, {t0}.startdate, {t1}.name, {t0}.comment",
-            f"FROM {t0} INNER JOIN {t1} ON {t0}.staff_id == {t1}.tasz",
+            f"FROM {t0} INNER JOIN {t1} ON {t0}.staff_id == {t1}.id",
             f"WHERE {t0}.parameter_id == ?;"
         ))
-        self.dbifc.x(select, (self.selection["param"],))
-        self.data["cc"] = self.dbifc.c.fetchall()
+        self.data["cc"] = self.dbifc.query(select, (self.selection["param"],))
 
     def logical_reset(self):
         self.data = dict(
@@ -107,13 +107,13 @@ class SelectionWizard(Toplevel):
             cc=None
         )
         self.arg = dict(
-            method=("Mérési módszer kiválasztása",
+            method=("Mérési módszer",
                     ["ID", "Akkred", "Megnevezés", "Felelős"],
                     [70, 70, 600, 200]),
-            param=("Kontrollált paraméter kiválasztása",
+            param=("Kontrollált paraméter",
                    ["ID", "Paraméter", "Mértékegység"],
                    [70, 600, 200]),
-            cc=("Kontroll diagram kiválasztása",
+            cc=("Kontroll diagram",
                 ["ID", "Anyagminta", "Dátum", "Felvevő", "Megjegyzés"],
                 [70, 100, 100, 300, 500])
         )
@@ -137,7 +137,3 @@ class SelectionWizard(Toplevel):
 
     def new(self):
         self.destroy()
-
-
-if __name__ == '__main__':
-    SelectionWizard(None).mainloop()

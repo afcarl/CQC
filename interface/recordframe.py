@@ -2,8 +2,9 @@ from tkinter import Frame, Label, Button, Entry, messagebox as tkmb
 from tkinter.ttk import Combobox
 from datetime import datetime
 
-from .measurements import NewMeasurements
-from controlchart.parameter import MethodRecord, ParameterRecord, CCRecord, Measurements
+from .measurementwidget import NewMeasurements
+from midware.parameter import MethodRecord, ParameterRecord, CCRecord
+from midware import Measurements
 from util.routine import validate_date, datefmt, floatify
 
 
@@ -21,9 +22,13 @@ class _StaffSelector(Combobox):
         self.fill()
 
     def fill(self, refname=None):
-        name = self.master.results["staff_id"]
-        data = self.dbifc.get_username(name) if name else self.dbifc.current_user()
+        del refname
+        userid = self.master.results["staff_id"]
+        data = self.dbifc.get_username(userid) if userid else self.master.master.master.user["name"]
         self.set(data)
+
+    def get(self):
+        return self.master.dbifc.get_userid(super().get())
 
 
 class _RecEntry(Entry):
@@ -35,7 +40,7 @@ class _RecEntry(Entry):
     def fill(self, refname):
         data = self.master.results[refname]
         self.delete(0, "end")
-        self.insert(0, data if data else "")
+        self.insert(0, "" if data in (None, "") else data)
 
 
 class _DateEntry(_RecEntry):
@@ -58,10 +63,11 @@ class _Record(Frame):
     _wtypes = ()
     width = 20
 
-    def __init__(self, master, dbifc, uID=None, resultobj=None, **kw):
+    def __init__(self, master, dbifc, resultobj=None, **kw):
         super().__init__(master, **kw)
+        if resultobj is None:
+            print(f"Empty resultobj @ {self._title}")
         self.dbifc = dbifc
-        self.upstream_ID = uID
         self.empty = not bool(resultobj)
         self.results = {
             "módszer": MethodRecord, "paraméter": ParameterRecord, "kontroll diagram": CCRecord
@@ -90,10 +96,9 @@ class _Record(Frame):
     def check(self):
         for validor in self._validorz:
             if not validor(self):
-                return
-        self.results.incorporate({k: self.w[k].get() for k in ("name", "mnum", "akkn")})
-        print(self.results.data)
-        self.destroy()
+                return None
+        self.results.incorporate({k: self.w[k].get() for k in self._refnames})
+        return self.results
 
     def lock(self):
         for w in self.w.values():
@@ -107,7 +112,7 @@ class _Record(Frame):
 class MethodFrame(_Record):
 
     _title = "módszer"
-    _refnames = "name", "mnum", "akkn", "staff"
+    _refnames = "name", "mnum", "akkn", "staff_id"
     _nicenames = "Megnevezés", "Szám", "Akkred szám", "Felelős"
     _wtypes = _RecEntry, _RecEntry, _RecEntry, _StaffSelector
 
@@ -133,7 +138,7 @@ class MethodFrame(_Record):
 
     def _valid_akkn(self):
         akkn = self.w["akkn"].get()
-        err = "Helytelen akkreditációs azonosító forma! Helyesen: pl. A/13"
+        err = "Helytelen akkreditációs azonosító formátum! Helyesen: pl. A/13"
         s = akkn.split("/")
         if "/" not in akkn or len(s) != 2 or not s[1].isdigit():
             _throw(err)
@@ -144,8 +149,10 @@ class MethodFrame(_Record):
     _validorz = _valid_name, _valid_mnum, _valid_akkn
 
     def check(self):
-        super().check()
-        self.results["staff_id"] = self.dbifc.get_tasz(self.w["staff"].get())
+        if super().check() is None:
+            return None
+        self.results["staff_id"] = self.w["staff"].get()
+        return self.results
 
 
 class ParamFrame(_Record):
@@ -156,14 +163,14 @@ class ParamFrame(_Record):
     _wtypes = _RecEntry, _RecEntry
 
     def _valid_name(self):
-        assert self.upstream_ID is not None
+        assert self.results.upstream_id is not None
         name = self.w["name"].get()
         if name:
             got = self.dbifc.query("SELECT id FROM Parameter WHERE method_id == ? AND name == ?",
-                                   [self.upstream_ID, name])
-            if got is None:
+                                   [self.results.upstream_id, name])
+            if not got:
                 return True
-            _throw("{name} nevű paraméter már van ehhez a módszerhez!")
+            _throw(f"{name} nevű paraméter már van ehhez a módszerhez!")
         else:
             _throw("Nevet kötelező megadni!")
         self.w["name"].focus_set()
@@ -175,7 +182,7 @@ class ParamFrame(_Record):
 class CCFrame(_Record):
 
     _title = "kontroll diagram"
-    _refnames = "startdate", "staff", "refmaterial", "comment", "refmean", "refstd", "uncertainty"
+    _refnames = "startdate", "staff_id", "refmaterial", "comment", "refmean", "refstd", "uncertainty"
     _nicenames = "Felvéve (dátum)", "Felelős", "Anyagminta", "Megjegyzés", "Átlag", "Szórás", "Mérési bizonytalanság"
     _wtypes = _DateEntry, _StaffSelector, _RecEntry, _RecEntry, _RecEntry, _RecEntry, _RecEntry
 
@@ -200,7 +207,7 @@ class CCFrame(_Record):
         if not v:
             _throw("Helytelen dátum formátum. Helyesen: ÉÉÉÉ.HH.NN")
             self.w["startdate"].delete(0, "end")
-            self.w["startdate"].insert(0, datefmt(datetime.now()))
+            self.w["startdate"].push_record(0, datefmt(datetime.now()))
             self.w["startdate"].focus_set()
         return v
 
@@ -209,6 +216,15 @@ class CCFrame(_Record):
         if not valid:
             _throw("Anyagminta azonosítót kötelező megadni!")
             self.w["refmaterial"].focus_set()
+        return valid
+
+    def _valid_unique(self):
+        startdate = self.w["startdate"].get()
+        refmaterial = self.w["refmaterial"].get()
+        sqlcmd = "SELECT id FROM Controll_diagram WHERE startdate == ? AND refmaterial == ?"
+        valid = bool(len(self.dbifc.query(sqlcmd, [startdate, refmaterial])))
+        if not valid:
+            _throw(f"{startdate} dátummal {refmaterial} anyagmintára már létezik kontroll diagram!")
         return valid
 
     def _validate_float(self, name, refstr):
@@ -230,8 +246,9 @@ class CCFrame(_Record):
     _validorz = (_valid_startdate, _valid_refmaterial, _valid_refmean, _valid_refstd)
 
     def check(self):
-        super().check()
-        self.results["staff_id"] = self.dbifc.get_tasz(self.w["staff"].get())
+        if super().check() is None:
+            return None
+        return self.results
 
     def lock(self):
         super().lock()
@@ -240,14 +257,3 @@ class CCFrame(_Record):
     def unlock(self):
         super().unlock()
         self.refmeasure_button.configure(state="normal")
-
-if __name__ == '__main__':
-    from tkinter import Tk
-    from dbconnection import DBConnection
-    conn = DBConnection()
-    tk = Tk()
-    nmkw = dict(master=tk, dbifc=conn, uID=1, bd=3, relief="raised")
-    frames = [MethodFrame(**nmkw), ParamFrame(**nmkw), CCFrame(**nmkw)]
-    for frame in frames:
-        frame.pack()
-    tk.mainloop()

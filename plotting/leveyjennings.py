@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from scipy import stats
 
 
@@ -84,9 +85,13 @@ class LeveyJenningsChart(object):
         plt.plot(self.Xs, pred, "r--", linewidth=2)
 
     def _set_titles(self):
-        pst = f"Kontroll diagram {self.param.prec['name']} paraméterhez"
-        pt = f"Anyagminta: {self.param.ccrec['refmaterial']}"
-        plt.title("\n".join((pst, pt)), fontsize=12)
+        mr, pr, ccr = self.param.mrec, self.param.prec, self.param.ccrec
+        title = "\n".join((
+            f"Kontroll diagram {pr['name']} paraméterhez",
+            f"NAV SZI {mr['akkn']} - {mr['name']}",
+            f"Anyagminta: {ccr['refmaterial']}"
+        ))
+        plt.title(title, fontsize=12)
 
     def _create_plot(self, trend=False, annot=True):
         gcf = plt.gcf()
@@ -97,8 +102,8 @@ class LeveyJenningsChart(object):
         self._scatter_points(annot=annot)
         if trend:
             self._add_linear_trendline()
-        self.ax.set_xlim([1, 30])
-        self.ax.xaxis.set_ticks(np.arange(0, 30, 2))
+        loc = MultipleLocator((len(self.Xs) // 10)+1)
+        self.ax.xaxis.set_major_locator(loc)
         self._add_zscore_axis(ax)
         self._set_titles()
         plt.tight_layout()
