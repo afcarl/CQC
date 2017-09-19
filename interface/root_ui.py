@@ -72,13 +72,13 @@ class CCManagerRoot(Tk):
         IDs = self.dbifc.push_object(self.ccobject)
         rex = self.ccobject.rec
         for rectype, ID in IDs.items():
-            if ID is None:
-                assert rex[rectype]["id"] is not None, f"@ {rectype} (ID: {ID})"
-            assert rex[rectype]["id"] is None, f"@ {rectype} (ID: {ID})\nIDs: {IDs}\nrecdata: {rex[rectype].data}"
-            rex[rectype]["id"] = ID
+            if rex[rectype]["id"] is None:
+                rex[rectype]["id"] = ID
+            else:
+                assert rex[rectype]["id"] == ID
         self.chartholder.update_image(self.ccobject)
         self.menubar.unlock()
-        self.properties_butt0on.configure(state="active")
+        self.properties_button.configure(state="active")
 
     def opencc_cmd(self):
         wiz = SelectionWizard(self, creation_mode=False, skipempties=True, dbifc=self.dbifc)

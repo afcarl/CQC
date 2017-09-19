@@ -54,6 +54,7 @@ class DBConnection:
                 continue
             rec.upstream_id = uID
             uID = self.push_record(rec)
+            IDs[stage] = uID
             print("Saved", stage)
         return IDs
 
